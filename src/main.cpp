@@ -55,12 +55,33 @@ std::vector<int> theBudget;
 std::vector<sEmployee> theEmployees;
 std::vector<sAssign> theAssigns;
 
+// generate example problem
 void generate1()
 {
     sEmployee e;
     e.myName = "Alice";
     e.myCan = {0, 1, 2};
     e.myPayLimit = 35;
+    e.myCrateLimit = 2;
+    e.myEfficiency = 3;
+    e.myPay = 0;
+    e.myCrate = 0;
+    theEmployees.push_back(e);
+    e.myName = "Bob";
+    e.myCan = {0, 3};
+    e.myPayLimit = INT_MAX;
+    e.myCrateLimit = INT_MAX;
+    e.myEfficiency = 2;
+    theEmployees.push_back(e);
+
+    theBudget = {20, 20, 20, 20, 20};
+}
+void generate2()
+{
+    sEmployee e;
+    e.myName = "Alice";
+    e.myCan = {0, 1, 2};
+    e.myPayLimit = INT_MAX; // remove pay limit, so crate limit will come into play
     e.myCrateLimit = 2;
     e.myEfficiency = 3;
     e.myPay = 0;
@@ -129,6 +150,33 @@ std::vector<int> maxFlow(
     return vEdgeFlow;
 }
 
+bool checkCrateLimit(
+    raven::graph::sGraphData &gd,
+    std::vector<int> &vEdgeFlow)
+{
+    for (auto &e : theEmployees)
+    {
+        if (e.myCrateLimit == INT_MAX)
+            continue;
+
+        int crateCount = 0;
+        for (int c : e.myCan)
+        {
+            int ei = gd.g.find(
+                e.myName,
+                crateName(c));
+            if (ei > 0)
+                if (vEdgeFlow[ei] > 0)
+                    crateCount++;
+        }
+        if (crateCount > e.myCrateLimit)
+        {
+            std::cout << e.myName << " exceeds crate limit\n";
+            return false;
+        }
+    }
+    return true;
+}
 void display(
     raven::graph::sGraphData &gd,
     std::vector<int> &vEdgeFlow)
@@ -161,11 +209,13 @@ void display(
 }
 main()
 {
-    generate1();
+    generate2();
 
     auto gd = makeGraph();
 
     auto flows = maxFlow(gd);
+
+    checkCrateLimit(gd, flows);
 
     display(gd, flows);
 
