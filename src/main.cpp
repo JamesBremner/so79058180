@@ -76,12 +76,12 @@ void generate1()
     theBudget = {20, 20, 20, 20, 20};
 }
 
-std::string crateName(int index )
+std::string crateName(int index)
 {
     return std::string(1, (char)('A' + index));
 }
 
-void makeGraph()
+raven::graph::sGraphData makeGraph()
 {
     raven::graph::sGraphData gd;
     gd.g.directed();
@@ -97,7 +97,7 @@ void makeGraph()
         // connect each employee to the crates they can push
         for (int c : e.myCan)
         {
-            gd.g.add(e.myName, crateName( c ));
+            gd.g.add(e.myName, crateName(c));
             gd.edgeWeight.push_back(INT_MAX);
         }
     }
@@ -115,9 +115,24 @@ void makeGraph()
     gd.startName = "src";
     gd.endName = "snk";
 
-    //  Maximum flows using Edmonds–Karp implementation of Ford–Fulkerson
+    return gd;
+}
+
+std::vector<int> maxFlow(
+    raven::graph::sGraphData &gd)
+{
     std::vector<int> vEdgeFlow;
+
+    //  Maximum flows using Edmonds–Karp implementation of Ford–Fulkerson
     raven::graph::flows(gd, vEdgeFlow);
+
+    return vEdgeFlow;
+}
+
+void display(
+    raven::graph::sGraphData &gd,
+    std::vector<int> &vEdgeFlow)
+{
 
     // std::cout << "Flows\n";
     // for (int e = 0; e < gd.g.edgeCount(); e++)
@@ -147,6 +162,12 @@ void makeGraph()
 main()
 {
     generate1();
-    makeGraph();
+
+    auto gd = makeGraph();
+
+    auto flows = maxFlow(gd);
+
+    display(gd, flows);
+
     return 0;
 }
