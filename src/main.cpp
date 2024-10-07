@@ -160,20 +160,38 @@ bool checkCrateLimit(
             continue;
 
         int crateCount = 0;
+        int lowestPayment = INT_MAX;
+        int lowestCrate;
         for (int c : e.myCan)
         {
             int ei = gd.g.find(
                 e.myName,
                 crateName(c));
             if (ei > 0)
-                if (vEdgeFlow[ei] > 0)
+            {
+                int f = vEdgeFlow[ei];
+                if (f > 0)
+                {
                     crateCount++;
+                    if (f < lowestPayment)
+                    {
+                        lowestPayment = f;
+                        lowestCrate = c;
+                    }
+                }
+            }
         }
-        if (crateCount > e.myCrateLimit)
-        {
-            std::cout << e.myName << " exceeds crate limit\n";
-            return false;
-        }
+        if (crateCount <= e.myCrateLimit)
+            continue;
+
+        std::cout << e.myName << " exceeds crate limit\n";
+
+        // remove crate with lowest payment
+        gd.g.remove(
+            e.myName,
+            crateName(lowestCrate));
+
+        return false;
     }
     return true;
 }
@@ -198,12 +216,25 @@ void display(
         {
             int ei = gd.g.find(
                 e.myName,
-                std::string(1, (char)('A' + kc)));
+                crateName(kc));
             if (ei > 0)
                 totalPay += vEdgeFlow[ei];
         }
         std::cout << e.myName << " is paid " << totalPay << "\n";
         totalDistance += totalPay * e.myEfficiency;
+
+        std::cout << "( ";
+        for (int kc = 0; kc < theBudget.size(); kc++)
+        {
+            int ei = gd.g.find(
+                e.myName,
+                crateName(kc));
+            if (ei > 0)
+                std::cout << " " << vEdgeFlow[ei]
+                    << " for crate " << crateName(kc) << " ";
+        }
+        std::cout << " )\n";
+
     }
     std::cout << "Total Distance " << totalDistance << "\n";
 }
@@ -213,9 +244,14 @@ main()
 
     auto gd = makeGraph();
 
-    auto flows = maxFlow(gd);
+    std::vector<int> flows;
+    bool crateLimitOK = false;
+    while (!crateLimitOK)
+    {
+        flows = maxFlow(gd);
 
-    checkCrateLimit(gd, flows);
+        crateLimitOK = checkCrateLimit(gd, flows);
+    }
 
     display(gd, flows);
 
