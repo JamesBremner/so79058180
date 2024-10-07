@@ -76,68 +76,9 @@ void generate1()
     theBudget = {20, 20, 20, 20, 20};
 }
 
-void assign()
+std::string crateName(int index )
 {
-    // loop until no more assignments can be made
-    bool fAssigned = true;
-    while (fAssigned)
-    {
-        fAssigned = false;
-
-        // find cheapest employee that can still be assigned
-        int cheap = 0;
-        sEmployee null;
-        sEmployee *cheapest = &null;
-        for (auto &e : theEmployees)
-        {
-            if (e.myEfficiency > cheap)
-            {
-                // check limits
-                if (e.myPay < e.myPayLimit &&
-                    e.myCrate < e.myCrateLimit)
-                {
-                    cheap = e.myEfficiency;
-                    cheapest = &e;
-                }
-            }
-        }
-
-        std::cout << cheapest->myName << "\n";
-
-        // select a crate with remaining budget that cheapest employee can push
-        int crate;
-        for (int crate = 0; crate < theBudget.size(); crate++)
-        {
-            if (theBudget[crate] > 0 &&
-                cheapest->isCapable(crate))
-            {
-                int paid = theBudget[crate];
-                if (paid > cheapest->myPayLimit - cheapest->myPay)
-                    paid = cheapest->myPayLimit - cheapest->myPay;
-                cheapest->myPay += paid;
-                theBudget[crate] -= paid;
-                theAssigns.emplace_back(
-                    cheapest, crate, paid);
-                fAssigned = true;
-                break;
-            }
-        }
-    }
-}
-
-void display()
-{
-    std::cout << "Output\n";
-    int totalDistance = 0;
-    for (auto &a : theAssigns)
-    {
-        totalDistance += a.myPaid * a.myEmp->myEfficiency;
-        std::cout << a.myEmp->myName
-                  << " crate " << (char)('A' + a.myCrate)
-                  << " paid " << a.myPaid
-                  << "\n";
-    }
-    std::cout << "total distance " << totalDistance << "\n";
+    return std::string(1, (char)('A' + index));
 }
 
 void makeGraph()
@@ -156,8 +97,7 @@ void makeGraph()
         // connect each employee to the crates they can push
         for (int c : e.myCan)
         {
-            std::string crateName = std::string(1, (char)('A' + c));
-            gd.g.add(e.myName, crateName);
+            gd.g.add(e.myName, crateName( c ));
             gd.edgeWeight.push_back(INT_MAX);
         }
     }
@@ -167,7 +107,7 @@ void makeGraph()
     {
         // connect crates to the sink
         // limiting capacity to the budget for that crate
-        gd.g.add(std::string(1, (char)('A' + i)), "snk");
+        gd.g.add(crateName(i), "snk");
         gd.edgeWeight.push_back(theBudget[i]);
     }
 
@@ -208,6 +148,5 @@ main()
 {
     generate1();
     makeGraph();
-    display();
     return 0;
 }
