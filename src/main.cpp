@@ -36,6 +36,12 @@ struct sEmployee
     }
 };
 
+struct sCrate
+{
+    int myBudget;
+    int myPop;          // number employess capable of pushing this crate
+};
+
 struct sAssign
 {
     sEmployee *myEmp;
@@ -53,7 +59,7 @@ struct sAssign
     }
 };
 
-std::vector<int> theBudget;
+std::vector<sCrate> theCrates;
 std::vector<sEmployee> theEmployees;
 std::vector<sAssign> theAssigns;
 
@@ -79,29 +85,14 @@ void generate1()
     e.myEfficiency = 2;
     theEmployees.push_back(e);
 
-    theBudget = {20, 20, 20, 20, 20};
-}
-void generate2()
-{
-    sEmployee e;
-    e.myName = "Alice";
-    e.myCan = {0, 1, 2};
-    e.myPayLimit = 35;
-    e.myCrateLimit = 2;
-    e.myEfficiency = 3;
-    e.myPay = 0;
-    e.myCrate = 0;
-    theEmployees.push_back(e);
-    e.myName = "Bob";
-    e.myCan = {0, 3};
-    e.myPayLimit = INT_MAX;
-    e.myCrateLimit = INT_MAX;
-    e.myEfficiency = 2;
-    theEmployees.push_back(e);
+    std::vector<int> Budget = {20, 20, 20, 20, 20};
 
-    // theBudget = {20, 20, 20, 20, 20};
-    // theBudget = {20, 6, 20, 20, 20};
-    theBudget = {500, 0, 0, 0, 0};
+    for( int b : Budget )
+    {
+        sCrate c;
+        c.myBudget = b;
+        theCrates.push_back( c );
+    }
 }
 
 std::string crateName(int index)
@@ -109,10 +100,30 @@ std::string crateName(int index)
     return std::string(1, (char)('A' + index));
 }
 
+
+// sortCratesByIncreasingPopularity()
+// {
+//     std::vector<int> vPop;
+//     for( int c = 0; c < theBudget.size(); c++ )
+//     {
+//         int popCount = 0;
+//         for( auto& e : theEmployees )
+//         {
+//             if( e.isCapable(c))
+//                 popCount++;
+//         }
+//         vPop.push_back(popCount);
+//     }
+//    for( int c = 0; c < theBudget.size(); c++ )
+//     std::cout << crateName(c) <<" "<< vPop[c] << "\n";
+// }
+
 raven::graph::sGraphData makeGraph()
 {
     raven::graph::sGraphData gd;
     gd.g.directed();
+
+    // sortCratesByIncreasingPopularity();
 
     // loop over employees
     for (auto &e : theEmployees)
@@ -131,12 +142,12 @@ raven::graph::sGraphData makeGraph()
     }
 
     // loop over crates
-    for (int i = 0; i < theBudget.size(); i++)
+    for (int i = 0; i < theCrates.size(); i++)
     {
         // connect crates to the sink
         // limiting capacity to the budget for that crate
         gd.g.add(crateName(i), "snk");
-        gd.edgeWeight.push_back(theBudget[i]);
+        gd.edgeWeight.push_back(theCrates[i].myBudget);
     }
 
     // flow from source to sink
@@ -223,8 +234,8 @@ std::string display()
         ss << ", ";
     }
     ss << "\nbudget: ";
-    for (int b : theBudget)
-        ss << b << " ";
+    for (auto& c : theCrates)
+        ss << c.myBudget << " ";
     ss << "\n=============\n";
 
     // std::cout << "Flows\n";
@@ -239,7 +250,7 @@ std::string display()
     for (auto &e : theEmployees)
     {
         int totalPay = 0;
-        for (int kc = 0; kc < theBudget.size(); kc++)
+        for (int kc = 0; kc < theCrates.size(); kc++)
         {
             int ei = theGraph.g.find(
                 e.myName,
@@ -251,7 +262,7 @@ std::string display()
         totalDistance += totalPay * e.myEfficiency;
 
         ss << "( ";
-        for (int kc = 0; kc < theBudget.size(); kc++)
+        for (int kc = 0; kc < theCrates.size(); kc++)
         {
             int ei = theGraph.g.find(
                 e.myName,
@@ -284,7 +295,7 @@ void run()
 cGUI::cGUI()
     : fm(wex::maker::make())
 {
-    generate2();
+    generate1();
     run();
 
     menus();
@@ -327,8 +338,8 @@ void cGUI::menus()
                   ib.gridWidth(200);
 
                   std::string sp;
-                  for (int b : theBudget)
-                      sp += std::to_string(b) + " ";
+                  for (auto& c : theCrates)
+                      sp += std::to_string(c.myBudget) + " ";
                   ib.add("Budget", sp);
 
                   sp = "";
@@ -343,11 +354,19 @@ void cGUI::menus()
 
                   ib.show();
 
-                  theBudget.clear();
-                  for (auto s : tokenize(ib.value("Budget")))
-                      theBudget.push_back(atoi(s.c_str()));
+                auto tokens = tokenize(ib.value("Budget"));
+                if( tokens.size() != theCrates.size() ) {
+                    wex::msgbox mb(
+                        "Need budget for " + std::to_string(theCrates.size()) + " crates");
+                    return;
+                }
+                  int c = 0;
+                  for (auto& s : tokenize(ib.value("Budget"))) {
+                      theCrates[c].myBudget = atoi(s.c_str());
+                      c++;
+                  }
 
-                  auto tokens = tokenize(ib.value("Pay Limits"));
+                  tokens = tokenize(ib.value("Pay Limits"));
                   int i = 0;
                   for (auto &e : theEmployees)
                   {
