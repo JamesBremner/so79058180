@@ -5,6 +5,7 @@
 #include <vector>
 #include <algorithm>
 #include "cGUI.h"
+#include <inputbox.h>
 #include "GraphTheory.h"
 
 struct sEmployee
@@ -258,7 +259,7 @@ std::string display()
             if (ei > 0)
                 if (theFlows[ei] > 0)
                     ss << " " << theFlows[ei]
-                              << " for crate " << crateName(kc) << " ";
+                       << " for crate " << crateName(kc) << " ";
         }
         ss << " )\n";
     }
@@ -268,8 +269,6 @@ std::string display()
 }
 void run()
 {
-    generate2();
-
     theGraph = makeGraph();
 
     bool crateLimitOK = false;
@@ -280,13 +279,15 @@ void run()
         crateLimitOK = enforceCrateLimit(theGraph, theFlows);
     }
 
-    std::cout << display();
 }
 
 cGUI::cGUI()
     : fm(wex::maker::make())
 {
+    generate2();
     run();
+
+    menus();
 
     fm.move({50, 50, 1000, 500});
     fm.text("Crate Pushing");
@@ -295,11 +296,74 @@ cGUI::cGUI()
         [&](PAINTSTRUCT &ps)
         {
             wex::shapes S(ps);
-            S.text( display(),{5,5,1000,1000});
+            S.text(display(), {5, 5, 1000, 1000});
         });
 
     fm.show();
     fm.run();
+}
+
+std::vector<std::string> tokenize(const std::string &line)
+{
+    std::vector<std::string> ret;
+    std::stringstream sst(line);
+    std::string a;
+    while (getline(sst, a, ' '))
+        ret.push_back(a);
+    return ret;
+}
+
+void cGUI::menus()
+{
+    wex::menubar mb(fm);
+
+    wex::menu mf(fm);
+
+    mf.append("Parameters",
+              [&](const std::string &title)
+              {
+                  wex::inputbox ib(fm);
+                  ib.labelWidth(100);
+                  ib.gridWidth(200);
+
+                  std::string sp;
+                  for (int b : theBudget)
+                      sp += std::to_string(b) + " ";
+                  ib.add("Budget", sp);
+
+                  sp = "";
+                  for (auto &e : theEmployees)
+                  {
+                      if (e.myPayLimit == INT_MAX)
+                          sp += "none ";
+                      else
+                          sp += std::to_string(e.myPayLimit) + " ";
+                  }
+                  ib.add("Pay Limits", sp);
+
+                  ib.show();
+
+                  theBudget.clear();
+                  for (auto s : tokenize(ib.value("Budget")))
+                      theBudget.push_back(atoi(s.c_str()));
+
+                  auto tokens = tokenize(ib.value("Pay Limits"));
+                  int i = 0;
+                  for (auto &e : theEmployees)
+                  {
+                      if (tokens[i] == "none")
+                          e.myPayLimit = INT_MAX;
+                      else
+                          e.myPayLimit = atoi(tokens[i].c_str());
+                      i++;
+                  }
+
+                  run();
+
+                  fm.update();
+              });
+
+    mb.append("Edit", mf);
 }
 main()
 {

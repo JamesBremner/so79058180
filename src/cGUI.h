@@ -11,7 +11,7 @@ public:
 
     }
 
-
-protected:
+private:
     wex::gui &fm;
+    void menus();
 };
