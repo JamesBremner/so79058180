@@ -38,8 +38,9 @@ struct sEmployee
 
 struct sCrate
 {
+    std::string myName;
     int myBudget;
-    int myPop;          // number employess capable of pushing this crate
+    int myPop; // number employess capable of pushing this crate
 };
 
 struct sAssign
@@ -87,43 +88,48 @@ void generate1()
 
     std::vector<int> Budget = {20, 20, 20, 20, 20};
 
-    for( int b : Budget )
+    int index = 0;
+    for (int b : Budget)
     {
         sCrate c;
+        c.myName = std::string(1, (char)('A' + index));
         c.myBudget = b;
-        theCrates.push_back( c );
+        theCrates.push_back(c);
+        index++;
     }
 }
 
-std::string crateName(int index)
+void sortCratesByIncreasingPopularity()
 {
-    return std::string(1, (char)('A' + index));
+
+    for (int c = 0; c < theCrates.size(); c++)
+    {
+        int popCount = 0;
+        for (auto &e : theEmployees)
+        {
+            if (e.isCapable(c))
+                popCount++;
+        }
+        theCrates[c].myPop = popCount;
+    }
+
+    std::sort(
+        theCrates.begin(), theCrates.end(),
+        [](const sCrate &a, const sCrate &b) -> bool
+        {
+            return (a.myPop < b.myPop);
+        });
+
+    // for (int c = 0; c < theCrates.size(); c++)
+    //     std::cout << theCrates[c].myName << " " << theCrates[c].myPop << "\n";
 }
-
-
-// sortCratesByIncreasingPopularity()
-// {
-//     std::vector<int> vPop;
-//     for( int c = 0; c < theBudget.size(); c++ )
-//     {
-//         int popCount = 0;
-//         for( auto& e : theEmployees )
-//         {
-//             if( e.isCapable(c))
-//                 popCount++;
-//         }
-//         vPop.push_back(popCount);
-//     }
-//    for( int c = 0; c < theBudget.size(); c++ )
-//     std::cout << crateName(c) <<" "<< vPop[c] << "\n";
-// }
 
 raven::graph::sGraphData makeGraph()
 {
     raven::graph::sGraphData gd;
     gd.g.directed();
 
-    // sortCratesByIncreasingPopularity();
+    sortCratesByIncreasingPopularity();
 
     // loop over employees
     for (auto &e : theEmployees)
@@ -136,18 +142,18 @@ raven::graph::sGraphData makeGraph()
         // connect each employee to the crates they can push
         for (int c : e.myCan)
         {
-            gd.g.add(e.myName, crateName(c));
+            gd.g.add(e.myName, theCrates[c].myName);
             gd.edgeWeight.push_back(INT_MAX);
         }
     }
 
     // loop over crates
-    for (int i = 0; i < theCrates.size(); i++)
+    for (int c = 0; c < theCrates.size(); c++)
     {
         // connect crates to the sink
         // limiting capacity to the budget for that crate
-        gd.g.add(crateName(i), "snk");
-        gd.edgeWeight.push_back(theCrates[i].myBudget);
+        gd.g.add(theCrates[c].myName, "snk");
+        gd.edgeWeight.push_back(theCrates[c].myBudget);
     }
 
     // flow from source to sink
@@ -186,7 +192,7 @@ bool enforceCrateLimit(
         {
             int ei = gd.g.find(
                 e.myName,
-                crateName(c));
+                theCrates[c].myName);
             if (ei > 0)
             {
                 int f = vEdgeFlow[ei];
@@ -212,7 +218,7 @@ bool enforceCrateLimit(
         // remove crate with lowest payment from this employees capable list
         gd.g.remove(
             e.myName,
-            crateName(lowestCrate));
+            theCrates[lowestCrate].myName);
 
         return false;
     }
@@ -234,7 +240,7 @@ std::string display()
         ss << ", ";
     }
     ss << "\nbudget: ";
-    for (auto& c : theCrates)
+    for (auto &c : theCrates)
         ss << c.myBudget << " ";
     ss << "\n=============\n";
 
@@ -254,7 +260,7 @@ std::string display()
         {
             int ei = theGraph.g.find(
                 e.myName,
-                crateName(kc));
+                theCrates[kc].myName);
             if (ei > 0)
                 totalPay += theFlows[ei];
         }
@@ -266,11 +272,11 @@ std::string display()
         {
             int ei = theGraph.g.find(
                 e.myName,
-                crateName(kc));
+                theCrates[kc].myName);
             if (ei > 0)
                 if (theFlows[ei] > 0)
                     ss << " " << theFlows[ei]
-                       << " for crate " << crateName(kc) << " ";
+                       << " for crate " << theCrates[kc].myName << " ";
         }
         ss << " )\n";
     }
@@ -289,7 +295,6 @@ void run()
 
         crateLimitOK = enforceCrateLimit(theGraph, theFlows);
     }
-
 }
 
 cGUI::cGUI()
@@ -307,7 +312,9 @@ cGUI::cGUI()
         [&](PAINTSTRUCT &ps)
         {
             wex::shapes S(ps);
-            S.text(display(), {5, 5, 1000, 1000});
+            std::string d = display();
+            S.text(d, {5, 5, 1000, 1000});
+            std::cout << d;
         });
 
     fm.show();
@@ -338,7 +345,7 @@ void cGUI::menus()
                   ib.gridWidth(200);
 
                   std::string sp;
-                  for (auto& c : theCrates)
+                  for (auto &c : theCrates)
                       sp += std::to_string(c.myBudget) + " ";
                   ib.add("Budget", sp);
 
@@ -354,14 +361,16 @@ void cGUI::menus()
 
                   ib.show();
 
-                auto tokens = tokenize(ib.value("Budget"));
-                if( tokens.size() != theCrates.size() ) {
-                    wex::msgbox mb(
-                        "Need budget for " + std::to_string(theCrates.size()) + " crates");
-                    return;
-                }
+                  auto tokens = tokenize(ib.value("Budget"));
+                  if (tokens.size() != theCrates.size())
+                  {
+                      wex::msgbox mb(
+                          "Need budget for " + std::to_string(theCrates.size()) + " crates");
+                      return;
+                  }
                   int c = 0;
-                  for (auto& s : tokenize(ib.value("Budget"))) {
+                  for (auto &s : tokenize(ib.value("Budget")))
+                  {
                       theCrates[c].myBudget = atoi(s.c_str());
                       c++;
                   }
