@@ -4,6 +4,7 @@
 #include <iostream>
 #include <vector>
 #include <algorithm>
+#include "cGUI.h"
 #include "GraphTheory.h"
 
 struct sEmployee
@@ -55,6 +56,9 @@ std::vector<int> theBudget;
 std::vector<sEmployee> theEmployees;
 std::vector<sAssign> theAssigns;
 
+raven::graph::sGraphData theGraph;
+std::vector<int> theFlows;
+
 // generate example problem
 void generate1()
 {
@@ -81,7 +85,7 @@ void generate2()
     sEmployee e;
     e.myName = "Alice";
     e.myCan = {0, 1, 2};
-    e.myPayLimit = 35; 
+    e.myPayLimit = 35;
     e.myCrateLimit = 2;
     e.myEfficiency = 3;
     e.myPay = 0;
@@ -95,7 +99,7 @@ void generate2()
     theEmployees.push_back(e);
 
     // theBudget = {20, 20, 20, 20, 20};
-    //theBudget = {20, 6, 20, 20, 20};
+    // theBudget = {20, 6, 20, 20, 20};
     theBudget = {500, 0, 0, 0, 0};
 }
 
@@ -191,7 +195,7 @@ bool enforceCrateLimit(
         if (crateCount <= e.myCrateLimit)
             continue; // limit not exceeded
 
-        //std::cout << e.myName << " exceeds crate limit\n";
+        // std::cout << e.myName << " exceeds crate limit\n";
 
         // remove crate with lowest payment from this employees capable list
         gd.g.remove(
@@ -202,25 +206,25 @@ bool enforceCrateLimit(
     }
     return true;
 }
-void display(
-    raven::graph::sGraphData &gd,
-    std::vector<int> &vEdgeFlow)
+std::string display()
 {
+    std::stringstream ss;
 
     // input
-    std::cout << "Pay Limits: ";
-    for( auto& e : theEmployees ) {
-        std::cout << e.myName <<" ";
-        if( e.myPayLimit == INT_MAX )
-            std::cout << "none";
+    ss << "Pay Limits: ";
+    for (auto &e : theEmployees)
+    {
+        ss << e.myName << " ";
+        if (e.myPayLimit == INT_MAX)
+            ss << "none";
         else
-            std::cout <<e.myPayLimit;
-        std::cout << ", ";
+            ss << e.myPayLimit;
+        ss << ", ";
     }
-    std::cout << "\nbudget: ";
-    for( int b : theBudget )
-        std::cout << b << " ";
-    std::cout << "\n=============\n";
+    ss << "\nbudget: ";
+    for (int b : theBudget)
+        ss << b << " ";
+    ss << "\n=============\n";
 
     // std::cout << "Flows\n";
     // for (int e = 0; e < gd.g.edgeCount(); e++)
@@ -236,46 +240,71 @@ void display(
         int totalPay = 0;
         for (int kc = 0; kc < theBudget.size(); kc++)
         {
-            int ei = gd.g.find(
+            int ei = theGraph.g.find(
                 e.myName,
                 crateName(kc));
             if (ei > 0)
-                totalPay += vEdgeFlow[ei];
+                totalPay += theFlows[ei];
         }
-        std::cout << e.myName << " is paid " << totalPay << "\n";
+        ss << e.myName << " is paid " << totalPay << "\n";
         totalDistance += totalPay * e.myEfficiency;
 
-        std::cout << "( ";
+        ss << "( ";
         for (int kc = 0; kc < theBudget.size(); kc++)
         {
-            int ei = gd.g.find(
+            int ei = theGraph.g.find(
                 e.myName,
                 crateName(kc));
             if (ei > 0)
-                if (vEdgeFlow[ei] > 0)
-                    std::cout << " " << vEdgeFlow[ei]
+                if (theFlows[ei] > 0)
+                    ss << " " << theFlows[ei]
                               << " for crate " << crateName(kc) << " ";
         }
-        std::cout << " )\n";
+        ss << " )\n";
     }
-    std::cout << "Total Distance " << totalDistance << "\n";
+    ss << "Total Distance " << totalDistance << "\n";
+
+    return ss.str();
 }
-main()
+void run()
 {
     generate2();
 
-    auto gd = makeGraph();
+    theGraph = makeGraph();
 
-    std::vector<int> flows;
     bool crateLimitOK = false;
     while (!crateLimitOK)
     {
-        flows = maxFlow(gd);
+        theFlows = maxFlow(theGraph);
 
-        crateLimitOK = enforceCrateLimit(gd, flows);
+        crateLimitOK = enforceCrateLimit(theGraph, theFlows);
     }
 
-    display(gd, flows);
+    std::cout << display();
+}
+
+cGUI::cGUI()
+    : fm(wex::maker::make())
+{
+    run();
+
+    fm.move({50, 50, 1000, 500});
+    fm.text("Crate Pushing");
+
+    fm.events().draw(
+        [&](PAINTSTRUCT &ps)
+        {
+            wex::shapes S(ps);
+            S.text( display(),{5,5,1000,1000});
+        });
+
+    fm.show();
+    fm.run();
+}
+main()
+{
+
+    cGUI GUI;
 
     return 0;
 }
