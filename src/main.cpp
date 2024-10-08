@@ -81,7 +81,7 @@ void generate2()
     sEmployee e;
     e.myName = "Alice";
     e.myCan = {0, 1, 2};
-    e.myPayLimit = INT_MAX; // remove pay limit, so crate limit will come into play
+    e.myPayLimit = 35; 
     e.myCrateLimit = 2;
     e.myEfficiency = 3;
     e.myPay = 0;
@@ -94,7 +94,9 @@ void generate2()
     e.myEfficiency = 2;
     theEmployees.push_back(e);
 
-    theBudget = {20, 20, 20, 20, 20};
+    // theBudget = {20, 20, 20, 20, 20};
+    //theBudget = {20, 6, 20, 20, 20};
+    theBudget = {500, 0, 0, 0, 0};
 }
 
 std::string crateName(int index)
@@ -150,15 +152,17 @@ std::vector<int> maxFlow(
     return vEdgeFlow;
 }
 
-bool checkCrateLimit(
+bool enforceCrateLimit(
     raven::graph::sGraphData &gd,
     std::vector<int> &vEdgeFlow)
 {
     for (auto &e : theEmployees)
     {
         if (e.myCrateLimit == INT_MAX)
-            continue;
+            continue; // no crate limit
 
+        // count number of crates assigned to the employee
+        // add find the crate with the lowest payment
         int crateCount = 0;
         int lowestPayment = INT_MAX;
         int lowestCrate;
@@ -172,21 +176,24 @@ bool checkCrateLimit(
                 int f = vEdgeFlow[ei];
                 if (f > 0)
                 {
+                    // this employee has been paid for this crate
                     crateCount++;
                     if (f < lowestPayment)
                     {
+                        // this is the crate with the least payment
                         lowestPayment = f;
                         lowestCrate = c;
                     }
                 }
             }
         }
+
         if (crateCount <= e.myCrateLimit)
-            continue;
+            continue; // limit not exceeded
 
-        std::cout << e.myName << " exceeds crate limit\n";
+        //std::cout << e.myName << " exceeds crate limit\n";
 
-        // remove crate with lowest payment
+        // remove crate with lowest payment from this employees capable list
         gd.g.remove(
             e.myName,
             crateName(lowestCrate));
@@ -199,6 +206,21 @@ void display(
     raven::graph::sGraphData &gd,
     std::vector<int> &vEdgeFlow)
 {
+
+    // input
+    std::cout << "Pay Limits: ";
+    for( auto& e : theEmployees ) {
+        std::cout << e.myName <<" ";
+        if( e.myPayLimit == INT_MAX )
+            std::cout << "none";
+        else
+            std::cout <<e.myPayLimit;
+        std::cout << ", ";
+    }
+    std::cout << "\nbudget: ";
+    for( int b : theBudget )
+        std::cout << b << " ";
+    std::cout << "\n=============\n";
 
     // std::cout << "Flows\n";
     // for (int e = 0; e < gd.g.edgeCount(); e++)
@@ -230,11 +252,11 @@ void display(
                 e.myName,
                 crateName(kc));
             if (ei > 0)
-                std::cout << " " << vEdgeFlow[ei]
-                    << " for crate " << crateName(kc) << " ";
+                if (vEdgeFlow[ei] > 0)
+                    std::cout << " " << vEdgeFlow[ei]
+                              << " for crate " << crateName(kc) << " ";
         }
         std::cout << " )\n";
-
     }
     std::cout << "Total Distance " << totalDistance << "\n";
 }
@@ -250,7 +272,7 @@ main()
     {
         flows = maxFlow(gd);
 
-        crateLimitOK = checkCrateLimit(gd, flows);
+        crateLimitOK = enforceCrateLimit(gd, flows);
     }
 
     display(gd, flows);
