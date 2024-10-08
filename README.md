@@ -1,3 +1,5 @@
+# Problem Statement
+
 Employees are willing to push crates for money. They have certain attributes:
 
 Each employee pushes crates at a certain rate. For example, Alice might push crates at 3 feet per dollar, and Bob might push them at 2 feet per dollar
@@ -11,3 +13,10 @@ Each employee might also have a limit to the number of dollars they're willing t
 I have a certain budget for each crate. For example, let's say I have 5 crates, labeled A through E, and I'm willing to spend $20 on each crate, but my budget for each crate can only be used to push one specific crate. 
 
 My goal is to maximize the sum of the distance pushed for all the crates.
+
+# GUI
+
+User can edit the pay limits and the budget
+
+![image](https://github.com/user-attachments/assets/ea8bd60c-0b84-4db8-9804-f9b3c2ed0705)
+
