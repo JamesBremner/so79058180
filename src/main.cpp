@@ -12,7 +12,7 @@ struct sEmployee
 {
     // configuration
     std::string myName;
-    std::vector<int> myCan;
+    std::vector<std::string> myCan;
     int myPayLimit;
     int myCrateLimit;
     int myEfficiency;
@@ -28,11 +28,11 @@ struct sEmployee
     }
 
     // true if employee can push crate
-    bool isCapable(int c)
+    bool isCapable(const std::string &crateName)
     {
         return (
             std::find(
-                myCan.begin(), myCan.end(), c) != myCan.end());
+                myCan.begin(), myCan.end(), crateName) != myCan.end());
     }
 };
 
@@ -60,7 +60,7 @@ struct sAssign
     }
 };
 
-std::vector<sCrate> theCrates;
+std::vector<sCrate> theCrates, theOriginalCrates;
 std::vector<sEmployee> theEmployees;
 std::vector<sAssign> theAssigns;
 
@@ -72,7 +72,7 @@ void generate1()
 {
     sEmployee e;
     e.myName = "Alice";
-    e.myCan = {0, 1, 2};
+    e.myCan = {"A", "B", "C"};
     e.myPayLimit = 35;
     e.myCrateLimit = 2;
     e.myEfficiency = 3;
@@ -80,13 +80,13 @@ void generate1()
     e.myCrate = 0;
     theEmployees.push_back(e);
     e.myName = "Bob";
-    e.myCan = {0, 3};
+    e.myCan = {"A", "D"};
     e.myPayLimit = INT_MAX;
     e.myCrateLimit = INT_MAX;
     e.myEfficiency = 2;
     theEmployees.push_back(e);
 
-    std::vector<int> Budget = {20, 20, 20, 20, 20};
+    std::vector<int> Budget = {20, 4, 20, 20, 20 };
 
     int index = 0;
     for (int b : Budget)
@@ -101,13 +101,13 @@ void generate1()
 
 void sortCratesByIncreasingPopularity()
 {
-
+    theOriginalCrates = theCrates;
     for (int c = 0; c < theCrates.size(); c++)
     {
         int popCount = 0;
         for (auto &e : theEmployees)
         {
-            if (e.isCapable(c))
+            if (e.isCapable(theCrates[c].myName))
                 popCount++;
         }
         theCrates[c].myPop = popCount;
@@ -140,9 +140,9 @@ raven::graph::sGraphData makeGraph()
         gd.edgeWeight.push_back(e.myPayLimit);
 
         // connect each employee to the crates they can push
-        for (int c : e.myCan)
+        for (auto &c : e.myCan)
         {
-            gd.g.add(e.myName, theCrates[c].myName);
+            gd.g.add(e.myName, c);
             gd.edgeWeight.push_back(INT_MAX);
         }
     }
@@ -174,56 +174,6 @@ std::vector<int> maxFlow(
     return vEdgeFlow;
 }
 
-bool enforceCrateLimit(
-    raven::graph::sGraphData &gd,
-    std::vector<int> &vEdgeFlow)
-{
-    for (auto &e : theEmployees)
-    {
-        if (e.myCrateLimit == INT_MAX)
-            continue; // no crate limit
-
-        // count number of crates assigned to the employee
-        // add find the crate with the lowest payment
-        int crateCount = 0;
-        int lowestPayment = INT_MAX;
-        int lowestCrate;
-        for (int c : e.myCan)
-        {
-            int ei = gd.g.find(
-                e.myName,
-                theCrates[c].myName);
-            if (ei > 0)
-            {
-                int f = vEdgeFlow[ei];
-                if (f > 0)
-                {
-                    // this employee has been paid for this crate
-                    crateCount++;
-                    if (f < lowestPayment)
-                    {
-                        // this is the crate with the least payment
-                        lowestPayment = f;
-                        lowestCrate = c;
-                    }
-                }
-            }
-        }
-
-        if (crateCount <= e.myCrateLimit)
-            continue; // limit not exceeded
-
-        // std::cout << e.myName << " exceeds crate limit\n";
-
-        // remove crate with lowest payment from this employees capable list
-        gd.g.remove(
-            e.myName,
-            theCrates[lowestCrate].myName);
-
-        return false;
-    }
-    return true;
-}
 std::string display()
 {
     std::stringstream ss;
@@ -240,16 +190,16 @@ std::string display()
         ss << ", ";
     }
     ss << "\nbudget: ";
-    for (auto &c : theCrates)
+    for (auto &c : theOriginalCrates)
         ss << c.myBudget << " ";
     ss << "\n=============\n";
 
-    // std::cout << "Flows\n";
-    // for (int e = 0; e < gd.g.edgeCount(); e++)
-    //     std::cout << gd.g.userName(gd.g.src(e))
-    //               << " " << gd.g.userName(gd.g.dest(e))
-    //               << " " << vEdgeFlow[e]
-    //               << "\n";
+    std::cout << "Flows\n";
+    for (int e = 0; e < theGraph.g.edgeCount(); e++)
+        std::cout << theGraph.g.userName(theGraph.g.src(e))
+                  << " " << theGraph.g.userName(theGraph.g.dest(e))
+                  << " " << theFlows[e]
+                  << "\n";
 
     // calculate totals and display
     int totalDistance = 0;
@@ -284,6 +234,76 @@ std::string display()
 
     return ss.str();
 }
+
+bool enforceCrateLimit(
+    raven::graph::sGraphData &gd,
+    std::vector<int> &vEdgeFlow)
+{
+    for (auto &e : theEmployees)
+    {
+        if (e.myCrateLimit == INT_MAX)
+            continue; // no crate limit
+
+        // count number of crates assigned to the employee
+        // add find the crate with the lowest payment
+        int crateCount = 0;
+        int lowestPayment = INT_MAX;
+        int bestPop = 0;
+        //std::string dropCrate;
+        std::string lowestPayCrate, highestPopCrate;
+        for (auto &c : e.myCan)
+        {
+            int ei = gd.g.find(
+                e.myName,
+                c);
+            if (ei > 0)
+            {
+                int f = vEdgeFlow[ei];
+                if (f > 0)
+                {
+                    // this employee has been paid for this crate
+                    crateCount++;
+
+                    auto it = std::find_if(
+                        theCrates.begin(),theCrates.end(),
+                        [&]( const sCrate& t ) -> bool
+                        {
+                            return t.myName == c;
+                        });
+                    if( it == theCrates.end() )
+                        throw std::runtime_error("enforceCrateLimit error ");
+                    if ( it->myPop > bestPop)
+                    {
+                        // this is the crate with the most alternative pushers
+                        bestPop = it->myPop;
+                        highestPopCrate = it->myName;
+                    }
+                    if( f < lowestPayment )
+                    {
+                        lowestPayment = f;
+                        lowestPayCrate = it->myName;
+
+                    }
+                }
+            }
+        }
+
+        if (crateCount <= e.myCrateLimit)
+            continue; // limit not exceeded, continue to next employee
+
+        std::cout << display() << e.myName << " exceeds crate limit\n";
+        std::cout << "lowest pay " << lowestPayCrate 
+            << " highest pushers " << highestPopCrate
+            << "\n";
+        std::cout << "\nxxxxx\n";
+
+        gd.edgeWeight[ gd.g.find(e.myName,lowestPayCrate)] = 0;
+
+        return false;
+    }
+    return true;
+}
+
 void run()
 {
     theGraph = makeGraph();
@@ -342,7 +362,7 @@ void cGUI::menus()
               {
                   wex::inputbox ib(fm);
                   ib.labelWidth(100);
-                  ib.gridWidth(200);
+                  ib.gridWidth(300);
 
                   std::string sp;
                   for (auto &c : theCrates)
