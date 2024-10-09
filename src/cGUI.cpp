@@ -45,6 +45,9 @@ void cGUI::menus()
     mf.append("Parameters",
               [&](const std::string &title)
               {
+                  // restore original crate order
+                  theCrates = theOriginalCrates;
+
                   wex::inputbox ib(fm);
                   ib.labelWidth(100);
                   ib.gridWidth(300);

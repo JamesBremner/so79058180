@@ -42,6 +42,7 @@ struct sOptimizer
 
 extern std::vector<sEmployee> theEmployees;
 extern std::vector<sCrate> theCrates;
+extern std::vector<sCrate> theOriginalCrates;
 extern sOptimizer theOptimizer;
 
 void generate1();
