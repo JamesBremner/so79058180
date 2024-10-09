@@ -10,6 +10,18 @@ bool sEmployee::isCapable(const std::string &crateName)
         std::find(
             myCan.begin(), myCan.end(), crateName) != myCan.end());
 }
+sCrate &findCrate(const std::string &name)
+{
+    auto it = std::find_if(
+        theCrates.begin(), theCrates.end(),
+        [&](const sCrate &t) -> bool
+        {
+            return t.myName == name;
+        });
+    if (it == theCrates.end())
+        throw std::runtime_error("Cannot find crate " + name);
+    return *it;
+}
 
 std::vector<sCrate> theCrates, theOriginalCrates;
 std::vector<sEmployee> theEmployees;
@@ -35,7 +47,8 @@ void generate1()
     e.myEfficiency = 2;
     theEmployees.push_back(e);
 
-    std::vector<int> Budget = {20, 4, 20, 20, 20};
+    //std::vector<int> Budget = {20, 4, 20, 20, 20};
+    std::vector<int> Budget = {500, 0, 0, 0, 0};
 
     int index = 0;
     for (int b : Budget)
@@ -142,11 +155,11 @@ std::string display()
     for (auto &c : theOriginalCrates)
         ss << c.myBudget << " ";
 
-    ss << "\nCrate Enforcer drops crate with ";
-    if (theOptimizer.fDropMostPushers)
-        ss << "most alternative pushers";
-    else
-        ss << "least payment";
+    // ss << "\nCrate Enforcer drops crate with ";
+    // if (theOptimizer.fDropMostPushers)
+    //     ss << "most alternative pushers";
+    // else
+    //     ss << "least payment";
 
     ss << "\n=============\n";
 
@@ -205,7 +218,9 @@ bool enforceCrateLimit(
         int crateCount = 0;
         int lowestPayment = INT_MAX;
         int bestPop = 0;
-        std::string lowestPayCrate, highestPopCrate;
+        int lowestBudget = INT_MAX;
+        std::string lowestPayCrate, highestPopCrate, lowestBudgetCrate;
+        int mostPopBudget;
         for (auto &c : e.myCan)
         {
             int ei = gd.g.find(
@@ -219,25 +234,24 @@ bool enforceCrateLimit(
                     // this employee has been paid for this crate
                     crateCount++;
 
-                    auto it = std::find_if(
-                        theCrates.begin(), theCrates.end(),
-                        [&](const sCrate &t) -> bool
-                        {
-                            return t.myName == c;
-                        });
-                    if (it == theCrates.end())
-                        throw std::runtime_error("enforceCrateLimit error ");
-                    if (it->myPop > bestPop)
+                    auto &crate = findCrate(c);
+                    if (crate.myPop > bestPop)
                     {
                         // this is the crate with the most alternative pushers
-                        bestPop = it->myPop;
-                        highestPopCrate = it->myName;
+                        bestPop = crate.myPop;
+                        highestPopCrate = crate.myName;
+                        mostPopBudget = crate.myBudget;
                     }
                     if (f < lowestPayment)
                     {
                         // this is the crate with the lowest payment from this employee
                         lowestPayment = f;
-                        lowestPayCrate = it->myName;
+                        lowestPayCrate = crate.myName;
+                    }
+                    if (crate.myBudget < lowestBudget)
+                    {
+                        lowestBudget = crate.myBudget;
+                        lowestBudgetCrate = crate.myName;
                     }
                 }
             }
@@ -246,16 +260,29 @@ bool enforceCrateLimit(
         if (crateCount <= e.myCrateLimit)
             continue; // limit not exceeded, continue to next employee
 
+    
+        /*
+        drop the crate that has the lowest budget.
+        The crate with the most alternative pushers
+        should only be dropped when
+        it has a budget no smaller than the other crates the employee is pushing.
+        */
+
+        std::string dropCrate;
+        if (mostPopBudget >= lowestBudget)
+            dropCrate = lowestBudgetCrate;
+        else
+            dropCrate = highestPopCrate;
+
         std::cout << display() << e.myName << " exceeds crate limit\n";
         std::cout << "lowest pay " << lowestPayCrate
                   << " highest pushers " << highestPopCrate
                   << "\n";
+        std::cout << "dropping crate " << dropCrate << "\n";
         std::cout << "\nxxxxx\n";
 
-        if (theOptimizer.fDropMostPushers)
-            gd.edgeWeight[gd.g.find(e.myName, highestPopCrate)] = 0;
-        else
-            gd.edgeWeight[gd.g.find(e.myName, lowestPayCrate)] = 0;
+        // zero capacity from employee to dropped crate
+        gd.edgeWeight[gd.g.find(e.myName, dropCrate)] = 0;
 
         return false;
     }
@@ -276,89 +303,6 @@ void run()
     }
 }
 
-cGUI::cGUI()
-    : fm(wex::maker::make())
-{
-    generate1();
-    run();
-
-    menus();
-
-    fm.move({50, 50, 1000, 500});
-    fm.text("Crate Pushing");
-
-    fm.events().draw(
-        [&](PAINTSTRUCT &ps)
-        {
-            wex::shapes S(ps);
-            std::string d = display();
-            S.text(d, {5, 5, 1000, 1000});
-            std::cout << d;
-        });
-
-    fm.show();
-    fm.run();
-}
-
-std::vector<std::string> tokenize(const std::string &line)
-{
-    std::vector<std::string> ret;
-    std::stringstream sst(line);
-    std::string a;
-    while (getline(sst, a, ' '))
-        ret.push_back(a);
-    return ret;
-}
-
-void cGUI::menus()
-{
-    wex::menubar mb(fm);
-
-    wex::menu mf(fm);
-
-    mf.append("Parameters",
-              [&](const std::string &title)
-              {
-                  wex::inputbox ib(fm);
-                  ib.labelWidth(100);
-                  ib.gridWidth(300);
-
-                  std::string sp;
-                  for (auto &c : theCrates)
-                      sp += std::to_string(c.myBudget) + " ";
-                  ib.add("Budget", sp);
-
-                  sp = "";
-                  for (auto &e : theEmployees)
-                  {
-                      if (e.myPayLimit == INT_MAX)
-                          sp += "none ";
-                      else
-                          sp += std::to_string(e.myPayLimit) + " ";
-                  }
-                  ib.add("Pay Limits", sp);
-
-                  ib.show();
-
-                  auto tokens = tokenize(ib.value("Budget"));
-                  if (tokens.size() != theCrates.size())
-                  {
-                      wex::msgbox mb(
-                          "Need budget for " + std::to_string(theCrates.size()) + " crates");
-                      return;
-                  }
-                  int c = 0;
-                  for (auto &s : tokenize(ib.value("Budget")))
-                  {
-                      theCrates[c].myBudget = atoi(s.c_str());
-                      c++;
-                  }
-
-                  tokens = tokenize(ib.value("Pay Limits"));
-                  int i = 0;
-                  for (auto &e : theEmployees)
-                  {
-                      if (tokens[i] == "none")
 main()
 {
     cGUI GUI;

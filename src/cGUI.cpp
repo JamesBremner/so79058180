@@ -96,31 +96,31 @@ void cGUI::menus()
                   fm.update();
               });
 
-    static wex::menu malgo(fm);
-    malgo.append("Lowest Payment",
-                 [&](const std::string &title)
-                 {
-                     theOptimizer.fDropMostPushers = false;
-                     malgo.check(0);
-                     malgo.check(1, false);
-                     run();
-                     fm.update();
-                 });
-    malgo.append("Most alternatives",
-                 [&](const std::string &title)
-                 {
-                     theOptimizer.fDropMostPushers = true;
-                     malgo.check(0, false);
-                     malgo.check(1, true);
-                     run();
-                     fm.update();
-                 });
-    mf.append("Crate Limit Enforcer", malgo);
+    // static wex::menu malgo(fm);
+    // malgo.append("Lowest Payment",
+    //              [&](const std::string &title)
+    //              {
+    //                  theOptimizer.fDropMostPushers = false;
+    //                  malgo.check(0);
+    //                  malgo.check(1, false);
+    //                  run();
+    //                  fm.update();
+    //              });
+    // malgo.append("Most alternatives",
+    //              [&](const std::string &title)
+    //              {
+    //                  theOptimizer.fDropMostPushers = true;
+    //                  malgo.check(0, false);
+    //                  malgo.check(1, true);
+    //                  run();
+    //                  fm.update();
+    //              });
+    // mf.append("Crate Limit Enforcer", malgo);
 
-    if (theOptimizer.fDropMostPushers)
-        malgo.check(1);
-    else
-        malgo.check(0);
+    // if (theOptimizer.fDropMostPushers)
+    //     malgo.check(1);
+    // else
+    //     malgo.check(0);
 
     mb.append("Edit", mf);
 }
