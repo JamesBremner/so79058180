@@ -1,71 +1,20 @@
-#include <string>
 #include <fstream>
-#include <sstream>
 #include <iostream>
-#include <vector>
 #include <algorithm>
+#include "cratePusher.h"
 #include "cGUI.h"
-#include <inputbox.h>
-#include "GraphTheory.h"
 
-struct sEmployee
+bool sEmployee::isCapable(const std::string &crateName)
 {
-    // configuration
-    std::string myName;
-    std::vector<std::string> myCan;
-    int myPayLimit;
-    int myCrateLimit;
-    int myEfficiency;
-
-    // status
-    int myPay;
-    int myCrate;
-
-    // default constructor  - unemployably inefficient
-    sEmployee()
-        : myEfficiency(INT_MAX)
-    {
-    }
-
-    // true if employee can push crate
-    bool isCapable(const std::string &crateName)
-    {
-        return (
-            std::find(
-                myCan.begin(), myCan.end(), crateName) != myCan.end());
-    }
-};
-
-struct sCrate
-{
-    std::string myName;
-    int myBudget;
-    int myPop; // number employess capable of pushing this crate
-};
-
-struct sAssign
-{
-    sEmployee *myEmp;
-    int myCrate;
-    int myPaid;
-
-    sAssign(sEmployee *e, int crate, int paid)
-        : myEmp(e),
-          myCrate(crate),
-          myPaid(paid)
-    {
-        std::cout << e->myName << " crate " << crate
-                  << " paid " << paid
-                  << "\n";
-    }
-};
+    return (
+        std::find(
+            myCan.begin(), myCan.end(), crateName) != myCan.end());
+}
 
 std::vector<sCrate> theCrates, theOriginalCrates;
 std::vector<sEmployee> theEmployees;
-std::vector<sAssign> theAssigns;
 
-raven::graph::sGraphData theGraph;
-std::vector<int> theFlows;
+sOptimizer theOptimizer;
 
 // generate example problem
 void generate1()
@@ -86,7 +35,7 @@ void generate1()
     e.myEfficiency = 2;
     theEmployees.push_back(e);
 
-    std::vector<int> Budget = {20, 4, 20, 20, 20 };
+    std::vector<int> Budget = {20, 4, 20, 20, 20};
 
     int index = 0;
     for (int b : Budget)
@@ -192,13 +141,20 @@ std::string display()
     ss << "\nbudget: ";
     for (auto &c : theOriginalCrates)
         ss << c.myBudget << " ";
+
+    ss << "\nCrate Enforcer drops crate with ";
+    if (theOptimizer.fDropMostPushers)
+        ss << "most alternative pushers";
+    else
+        ss << "least payment";
+
     ss << "\n=============\n";
 
     std::cout << "Flows\n";
-    for (int e = 0; e < theGraph.g.edgeCount(); e++)
-        std::cout << theGraph.g.userName(theGraph.g.src(e))
-                  << " " << theGraph.g.userName(theGraph.g.dest(e))
-                  << " " << theFlows[e]
+    for (int e = 0; e < theOptimizer.theGraph.g.edgeCount(); e++)
+        std::cout << theOptimizer.theGraph.g.userName(theOptimizer.theGraph.g.src(e))
+                  << " " << theOptimizer.theGraph.g.userName(theOptimizer.theGraph.g.dest(e))
+                  << " " << theOptimizer.theFlows[e]
                   << "\n";
 
     // calculate totals and display
@@ -208,11 +164,11 @@ std::string display()
         int totalPay = 0;
         for (int kc = 0; kc < theCrates.size(); kc++)
         {
-            int ei = theGraph.g.find(
+            int ei = theOptimizer.theGraph.g.find(
                 e.myName,
                 theCrates[kc].myName);
             if (ei > 0)
-                totalPay += theFlows[ei];
+                totalPay += theOptimizer.theFlows[ei];
         }
         ss << e.myName << " is paid " << totalPay << "\n";
         totalDistance += totalPay * e.myEfficiency;
@@ -220,12 +176,12 @@ std::string display()
         ss << "( ";
         for (int kc = 0; kc < theCrates.size(); kc++)
         {
-            int ei = theGraph.g.find(
+            int ei = theOptimizer.theGraph.g.find(
                 e.myName,
                 theCrates[kc].myName);
             if (ei > 0)
-                if (theFlows[ei] > 0)
-                    ss << " " << theFlows[ei]
+                if (theOptimizer.theFlows[ei] > 0)
+                    ss << " " << theOptimizer.theFlows[ei]
                        << " for crate " << theCrates[kc].myName << " ";
         }
         ss << " )\n";
@@ -249,7 +205,6 @@ bool enforceCrateLimit(
         int crateCount = 0;
         int lowestPayment = INT_MAX;
         int bestPop = 0;
-        //std::string dropCrate;
         std::string lowestPayCrate, highestPopCrate;
         for (auto &c : e.myCan)
         {
@@ -265,24 +220,24 @@ bool enforceCrateLimit(
                     crateCount++;
 
                     auto it = std::find_if(
-                        theCrates.begin(),theCrates.end(),
-                        [&]( const sCrate& t ) -> bool
+                        theCrates.begin(), theCrates.end(),
+                        [&](const sCrate &t) -> bool
                         {
                             return t.myName == c;
                         });
-                    if( it == theCrates.end() )
+                    if (it == theCrates.end())
                         throw std::runtime_error("enforceCrateLimit error ");
-                    if ( it->myPop > bestPop)
+                    if (it->myPop > bestPop)
                     {
                         // this is the crate with the most alternative pushers
                         bestPop = it->myPop;
                         highestPopCrate = it->myName;
                     }
-                    if( f < lowestPayment )
+                    if (f < lowestPayment)
                     {
+                        // this is the crate with the lowest payment from this employee
                         lowestPayment = f;
                         lowestPayCrate = it->myName;
-
                     }
                 }
             }
@@ -292,12 +247,15 @@ bool enforceCrateLimit(
             continue; // limit not exceeded, continue to next employee
 
         std::cout << display() << e.myName << " exceeds crate limit\n";
-        std::cout << "lowest pay " << lowestPayCrate 
-            << " highest pushers " << highestPopCrate
-            << "\n";
+        std::cout << "lowest pay " << lowestPayCrate
+                  << " highest pushers " << highestPopCrate
+                  << "\n";
         std::cout << "\nxxxxx\n";
 
-        gd.edgeWeight[ gd.g.find(e.myName,lowestPayCrate)] = 0;
+        if (theOptimizer.fDropMostPushers)
+            gd.edgeWeight[gd.g.find(e.myName, highestPopCrate)] = 0;
+        else
+            gd.edgeWeight[gd.g.find(e.myName, lowestPayCrate)] = 0;
 
         return false;
     }
@@ -306,14 +264,15 @@ bool enforceCrateLimit(
 
 void run()
 {
-    theGraph = makeGraph();
+    theOptimizer.theGraph = makeGraph();
 
     bool crateLimitOK = false;
     while (!crateLimitOK)
     {
-        theFlows = maxFlow(theGraph);
+        theOptimizer.theFlows = maxFlow(theOptimizer.theGraph);
 
-        crateLimitOK = enforceCrateLimit(theGraph, theFlows);
+        crateLimitOK = enforceCrateLimit(
+            theOptimizer.theGraph, theOptimizer.theFlows);
     }
 }
 
@@ -400,22 +359,8 @@ void cGUI::menus()
                   for (auto &e : theEmployees)
                   {
                       if (tokens[i] == "none")
-                          e.myPayLimit = INT_MAX;
-                      else
-                          e.myPayLimit = atoi(tokens[i].c_str());
-                      i++;
-                  }
-
-                  run();
-
-                  fm.update();
-              });
-
-    mb.append("Edit", mf);
-}
 main()
 {
-
     cGUI GUI;
 
     return 0;

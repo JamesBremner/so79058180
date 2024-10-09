@@ -22,6 +22,7 @@ CCflags = -std=c++17 $(OPT) -D_mingw_
 # sources
 OBJ_starter = \
 	$(ODIR)/main.o \
+	$(ODIR)/cGUI.o \
 	$(ODIR)/cGraph.o \
 	$(ODIR)/GraphTheory.o \
 
