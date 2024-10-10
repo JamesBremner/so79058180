@@ -47,8 +47,8 @@ void generate1()
     e.myEfficiency = 2;
     theEmployees.push_back(e);
 
-    //std::vector<int> Budget = {20, 4, 20, 20, 20};
-    std::vector<int> Budget = {500, 0, 0, 0, 0};
+     std::vector<int> Budget = {20, 6, 20, 20, 20};
+    //std::vector<int> Budget = {500, 0, 0, 0, 0};
 
     int index = 0;
     for (int b : Budget)
@@ -171,7 +171,7 @@ std::string display()
                   << "\n";
 
     // calculate totals and display
-    int totalDistance = 0;
+    // int totalDistance = 0;
     for (auto &e : theEmployees)
     {
         int totalPay = 0;
@@ -184,7 +184,7 @@ std::string display()
                 totalPay += theOptimizer.theFlows[ei];
         }
         ss << e.myName << " is paid " << totalPay << "\n";
-        totalDistance += totalPay * e.myEfficiency;
+        // totalDistance += totalPay * e.myEfficiency;
 
         ss << "( ";
         for (int kc = 0; kc < theCrates.size(); kc++)
@@ -199,7 +199,7 @@ std::string display()
         }
         ss << " )\n";
     }
-    ss << "Total Distance " << totalDistance << "\n";
+    ss << "Total Distance " << theOptimizer.distance() << "\n";
 
     return ss.str();
 }
@@ -258,7 +258,6 @@ bool enforceCrateLimit()
         if (crateCount <= e.myCrateLimit)
             continue; // limit not exceeded, continue to next employee
 
-    
         /*
         drop the crate that has the lowest budget.
         The crate with the most alternative pushers
@@ -270,7 +269,12 @@ bool enforceCrateLimit()
         // if (mostPopBudget >= lowestBudget)
         //     dropCrate = lowestBudgetCrate;
         // else
+        //dropCrate = highestPopCrate;
+
+        if( theOptimizer.fDropMostPushers)
             dropCrate = highestPopCrate;
+        else
+             dropCrate = lowestBudgetCrate;
 
         std::cout << display() << e.myName << " exceeds crate limit\n";
         std::cout << "lowest pay " << lowestPayCrate
@@ -287,17 +291,60 @@ bool enforceCrateLimit()
     return true;
 }
 
+int sOptimizer::distance()
+{
+    int totalDistance = 0;
+    for (auto &e : theEmployees)
+    {
+        int totalPay = 0;
+        for (auto &c : theCrates)
+        {
+            int ei = theOptimizer.theGraph.g.find(
+                e.myName,
+                c.myName);
+            if (ei > 0)
+                totalPay += theOptimizer.theFlows[ei];
+        }
+        totalDistance += totalPay * e.myEfficiency;
+    }
+    return totalDistance;
+}
+
 void sOptimizer::run()
 {
+    // make the flow graph
     theGraph = makeGraph();
+    auto originalGraph = theGraph;
 
-    bool crateLimitOK = false;
-    while (!crateLimitOK)
-    {
-        theFlows = maxFlow(theGraph);
+    // run maxflow algorithm
+    theFlows = maxFlow(theGraph);
 
-        crateLimitOK = enforceCrateLimit();
-    }
+    // enforce crate limit 
+    // by dropping crate with most alternative pushers
+    fDropMostPushers = false;
+    if (enforceCrateLimit())
+        return;                     // no crate limit exceeded
+    theFlows = maxFlow(theGraph);
+    int d1 = distance();
+    auto flows = theFlows;
+
+    // restore flow graph
+    theGraph = originalGraph;
+    theFlows = maxFlow(theGraph);
+
+    // enforce crate limit 
+    // by dropping crate with smallest payment 
+    fDropMostPushers = true;
+    enforceCrateLimit();
+    theFlows = maxFlow(theGraph);
+    int d2 = distance();
+
+    // return best result
+    if( d2 > d1 )
+        return;
+    theFlows = flows;
+    return;
+    
 }
 
 main()

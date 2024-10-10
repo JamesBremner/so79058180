@@ -40,6 +40,8 @@ struct sOptimizer
     bool fDropMostPushers;
 
     void run();
+
+    int distance();
 };
 
 extern std::vector<sEmployee> theEmployees;
