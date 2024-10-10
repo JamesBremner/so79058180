@@ -112,7 +112,7 @@ void cGUI::menus()
                   auto paths = fb.open();
                   if (paths.empty())
                       return;
-                  fm.title(paths);
+                  fm.text(paths);
                   readfile(paths);
                   theOptimizer.run();
                   fm.update();

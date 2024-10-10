@@ -14,9 +14,9 @@ sEmployee::sEmployee(
       myCrateLimit(atoi(crateLimit.c_str())),
       myEfficiency(atoi(efficiency.c_str()))
 {
-    if( payLimit == "none")
+    if (payLimit == "none")
         myPayLimit = INT_MAX;
-    if( crateLimit == "none")
+    if (crateLimit == "none")
         myCrateLimit = INT_MAX;
 }
 bool sEmployee::isCapable(const std::string &crateName)
@@ -31,11 +31,11 @@ sEmployee &sEmployee::find(
 {
     auto it = std::find_if(
         theEmployees.begin(), theEmployees.end(),
-        [&]( const sEmployee& e ) -> bool
+        [&](const sEmployee &e) -> bool
         {
-            return ( e.myName == name );
-        }    );
-    if( it == theEmployees.end() )
+            return (e.myName == name);
+        });
+    if (it == theEmployees.end())
     {
         static sEmployee null;
         return null;
@@ -43,12 +43,11 @@ sEmployee &sEmployee::find(
     return *it;
 }
 
-void sEmployee::setCapability( std::vector<std::string>& tokens )
+void sEmployee::setCapability(std::vector<std::string> &tokens)
 {
     myCan.clear();
-    for( int i = 2; i < tokens.size(); i++ )
-    myCan.push_back( tokens[i]);
-
+    for (int i = 2; i < tokens.size(); i++)
+        myCan.push_back(tokens[i]);
 }
 sCrate &findCrate(const std::string &name)
 {
@@ -96,7 +95,7 @@ void generate1()
     {
         theCrates.emplace_back(
             std::string(1, (char)('A' + index)),
-            b         );
+            b);
         index++;
     }
 }
@@ -227,15 +226,11 @@ std::string display()
         // totalDistance += totalPay * e.myEfficiency;
 
         ss << "( ";
-        for (int kc = 0; kc < theCrates.size(); kc++)
+        for ( auto& crate : theCrates )
         {
-            int ei = theOptimizer.theGraph.g.find(
-                e.myName,
-                theCrates[kc].myName);
-            if (ei > 0)
-                if (theOptimizer.theFlows[ei] > 0)
-                    ss << " " << theOptimizer.theFlows[ei]
-                       << " for crate " << theCrates[kc].myName << " ";
+            int f = theOptimizer.flow( e.myName, crate.myName );
+            if( f > 0 )
+                ss << " " << f << " for crate " << crate.myName << " ";
         }
         ss << " )\n";
     }
@@ -331,6 +326,16 @@ bool enforceCrateLimit()
     return true;
 }
 
+int sOptimizer::flow(
+    const std::string &employeeName,
+    const std::string &crateName) const
+{
+    int ei = theGraph.g.find(employeeName, crateName);
+    if (ei >= 0)
+        return theFlows[ei];
+    return 0;
+}
+
 int sOptimizer::distance()
 {
     int totalDistance = 0;
@@ -339,11 +344,7 @@ int sOptimizer::distance()
         int totalPay = 0;
         for (auto &c : theCrates)
         {
-            int ei = theOptimizer.theGraph.g.find(
-                e.myName,
-                c.myName);
-            if (ei > 0)
-                totalPay += theOptimizer.theFlows[ei];
+            totalPay += flow(e.myName, c.myName);
         }
         totalDistance += totalPay * e.myEfficiency;
     }

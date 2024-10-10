@@ -60,6 +60,10 @@ struct sOptimizer
     void run();
 
     int distance();
+
+    int flow(
+        const std::string& employeeName,
+        const std::string& crateName    ) const;
 };
 
 extern std::vector<sEmployee> theEmployees;
