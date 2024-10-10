@@ -1,0 +1,9 @@
+e Alice 35 2 3
+e Bob none none 2
+c A 20
+c B 20
+c C 20
+c D 20
+c E 20
+p Alice A B C
+p Bob A D

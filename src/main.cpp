@@ -1,14 +1,54 @@
-#include <fstream>
+
 #include <iostream>
 #include <algorithm>
 #include "cratePusher.h"
 #include "cGUI.h"
 
+sEmployee::sEmployee(
+    const std::string &name,
+    const std::string &payLimit,
+    const std::string &crateLimit,
+    const std::string &efficiency)
+    : myName(name),
+      myPayLimit(atoi(payLimit.c_str())),
+      myCrateLimit(atoi(crateLimit.c_str())),
+      myEfficiency(atoi(efficiency.c_str()))
+{
+    if( payLimit == "none")
+        myPayLimit = INT_MAX;
+    if( crateLimit == "none")
+        myCrateLimit = INT_MAX;
+}
 bool sEmployee::isCapable(const std::string &crateName)
 {
     return (
         std::find(
             myCan.begin(), myCan.end(), crateName) != myCan.end());
+}
+
+sEmployee &sEmployee::find(
+    const std::string &name)
+{
+    auto it = std::find_if(
+        theEmployees.begin(), theEmployees.end(),
+        [&]( const sEmployee& e ) -> bool
+        {
+            return ( e.myName == name );
+        }    );
+    if( it == theEmployees.end() )
+    {
+        static sEmployee null;
+        return null;
+    }
+    return *it;
+}
+
+void sEmployee::setCapability( std::vector<std::string>& tokens )
+{
+    myCan.clear();
+    for( int i = 2; i < tokens.size(); i++ )
+    myCan.push_back( tokens[i]);
+
 }
 sCrate &findCrate(const std::string &name)
 {
@@ -47,16 +87,16 @@ void generate1()
     e.myEfficiency = 2;
     theEmployees.push_back(e);
 
-     std::vector<int> Budget = {20, 6, 20, 20, 20};
-    //std::vector<int> Budget = {500, 0, 0, 0, 0};
+    std::vector<int> Budget = {20, 6, 20, 20, 20};
+    // std::vector<int> Budget = {500, 0, 0, 0, 0};
 
+    theCrates.clear();
     int index = 0;
     for (int b : Budget)
     {
-        sCrate c;
-        c.myName = std::string(1, (char)('A' + index));
-        c.myBudget = b;
-        theCrates.push_back(c);
+        theCrates.emplace_back(
+            std::string(1, (char)('A' + index)),
+            b         );
         index++;
     }
 }
@@ -269,12 +309,12 @@ bool enforceCrateLimit()
         // if (mostPopBudget >= lowestBudget)
         //     dropCrate = lowestBudgetCrate;
         // else
-        //dropCrate = highestPopCrate;
+        // dropCrate = highestPopCrate;
 
-        if( theOptimizer.fDropMostPushers)
+        if (theOptimizer.fDropMostPushers)
             dropCrate = highestPopCrate;
         else
-             dropCrate = lowestBudgetCrate;
+            dropCrate = lowestBudgetCrate;
 
         std::cout << display() << e.myName << " exceeds crate limit\n";
         std::cout << "lowest pay " << lowestPayCrate
@@ -319,11 +359,11 @@ void sOptimizer::run()
     // run maxflow algorithm
     theFlows = maxFlow(theGraph);
 
-    // enforce crate limit 
+    // enforce crate limit
     // by dropping crate with most alternative pushers
     fDropMostPushers = false;
     if (enforceCrateLimit())
-        return;                     // no crate limit exceeded
+        return; // no crate limit exceeded
     theFlows = maxFlow(theGraph);
     int d1 = distance();
     auto flows = theFlows;
@@ -332,19 +372,18 @@ void sOptimizer::run()
     theGraph = originalGraph;
     theFlows = maxFlow(theGraph);
 
-    // enforce crate limit 
-    // by dropping crate with smallest payment 
+    // enforce crate limit
+    // by dropping crate with smallest payment
     fDropMostPushers = true;
     enforceCrateLimit();
     theFlows = maxFlow(theGraph);
     int d2 = distance();
 
     // return best result
-    if( d2 > d1 )
+    if (d2 > d1)
         return;
     theFlows = flows;
     return;
-    
 }
 
 main()

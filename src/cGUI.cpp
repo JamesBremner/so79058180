@@ -1,3 +1,4 @@
+#include <fstream>
 #include "cratePusher.h"
 #include "cGUI.h"
 #include <inputbox.h>
@@ -36,13 +37,88 @@ std::vector<std::string> tokenize(const std::string &line)
     return ret;
 }
 
+void readfile(const std::string &filename)
+{
+    std::ifstream ifs(filename);
+    if (!ifs.is_open())
+        throw std::runtime_error(
+            "Cannot open " + filename);
+
+    theCrates.clear();
+    theEmployees.clear();
+
+    std::string line;
+    while (getline(ifs, line))
+    {
+        auto tokens = tokenize(line);
+        switch (line[0])
+        {
+
+        case 'e':
+            if (tokens.size() != 5)
+            {
+                std::cout << line << "\n";
+                throw std::runtime_error(
+                    "Bad format");
+            }
+            theEmployees.emplace_back(
+                tokens[1], tokens[2], tokens[3], tokens[4]);
+            break;
+
+        case 'c':
+            if (tokens.size() != 3)
+            {
+                std::cout << line << "\n";
+                throw std::runtime_error(
+                    "Bad format");
+            }
+            theCrates.emplace_back(
+                tokens[1],
+                atoi(tokens[2].c_str()));
+            break;
+
+        case 'p':
+            if (tokens.size() < 3)
+            {
+                std::cout << line << "\n";
+                throw std::runtime_error(
+                    "Bad format");
+            }
+            auto &e = sEmployee::find(tokens[1]);
+            if (e.myEfficiency == INT_MAX)
+            {
+                std::cout << line << "\n";
+                throw std::runtime_error(
+                    "Bad employee name");
+            }
+            e.setCapability(tokens);
+            break;
+        }
+    }
+}
+
 void cGUI::menus()
 {
     wex::menubar mb(fm);
 
     wex::menu mf(fm);
+    wex::menu mp(fm);
 
-    mf.append("Parameters",
+    mf.append("Open",
+              [&](const std::string &title)
+              {
+                  // prompt for file to open
+                  wex::filebox fb(fm);
+                  auto paths = fb.open();
+                  if (paths.empty())
+                      return;
+                  fm.title(paths);
+                  readfile(paths);
+                  theOptimizer.run();
+                  fm.update();
+              });
+
+    mp.append("Parameters",
               [&](const std::string &title)
               {
                   // restore original crate order
@@ -125,5 +201,6 @@ void cGUI::menus()
     // else
     //     malgo.check(0);
 
-    mb.append("Edit", mf);
+    mb.append("File", mf);
+    mb.append("Edit", mp);
 }

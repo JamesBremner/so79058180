@@ -22,15 +22,33 @@ struct sEmployee
     {
     }
 
+    sEmployee(
+        const std::string &name,
+        const std::string &payLimit,
+        const std::string &crateLimit,
+        const std::string &efficiency);
+
     // true if employee can push crate
     bool isCapable(const std::string &crateName);
+
+    void setCapability(std::vector<std::string> &tokens);
+
+    static sEmployee &find(
+        const std::string &name);
 };
 
 struct sCrate
 {
     std::string myName;
     int myBudget;
-    int myPop; // number employess capable of pushing this crate
+    int myPop; // number employees capable of pushing this crate
+    sCrate(
+        const std::string &name,
+        int budget)
+        : myName(name),
+          myBudget(budget)
+    {
+    }
 };
 
 struct sOptimizer
@@ -51,4 +69,3 @@ extern sOptimizer theOptimizer;
 
 void generate1();
 std::string display();
-void run();
