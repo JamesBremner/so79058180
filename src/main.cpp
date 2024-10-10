@@ -210,20 +210,16 @@ std::string display()
                   << "\n";
 
     // calculate totals and display
-    // int totalDistance = 0;
     for (auto &e : theEmployees)
     {
         int totalPay = 0;
-        for (int kc = 0; kc < theCrates.size(); kc++)
+        for (auto& crate : theCrates)
         {
-            int ei = theOptimizer.theGraph.g.find(
-                e.myName,
-                theCrates[kc].myName);
-            if (ei > 0)
-                totalPay += theOptimizer.theFlows[ei];
+            int f = theOptimizer.flow( e.myName, crate.myName );
+            if( f > 0 )
+                totalPay += f;
         }
         ss << e.myName << " is paid " << totalPay << "\n";
-        // totalDistance += totalPay * e.myEfficiency;
 
         ss << "( ";
         for ( auto& crate : theCrates )
