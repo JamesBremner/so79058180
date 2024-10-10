@@ -204,9 +204,7 @@ std::string display()
     return ss.str();
 }
 
-bool enforceCrateLimit(
-    raven::graph::sGraphData &gd,
-    std::vector<int> &vEdgeFlow)
+bool enforceCrateLimit()
 {
     for (auto &e : theEmployees)
     {
@@ -223,12 +221,12 @@ bool enforceCrateLimit(
         int mostPopBudget;
         for (auto &c : e.myCan)
         {
-            int ei = gd.g.find(
+            int ei = theOptimizer.theGraph.g.find(
                 e.myName,
                 c);
             if (ei > 0)
             {
-                int f = vEdgeFlow[ei];
+                int f = theOptimizer.theFlows[ei];
                 if (f > 0)
                 {
                     // this employee has been paid for this crate
@@ -269,9 +267,9 @@ bool enforceCrateLimit(
         */
 
         std::string dropCrate;
-        if (mostPopBudget >= lowestBudget)
-            dropCrate = lowestBudgetCrate;
-        else
+        // if (mostPopBudget >= lowestBudget)
+        //     dropCrate = lowestBudgetCrate;
+        // else
             dropCrate = highestPopCrate;
 
         std::cout << display() << e.myName << " exceeds crate limit\n";
@@ -282,24 +280,23 @@ bool enforceCrateLimit(
         std::cout << "\nxxxxx\n";
 
         // zero capacity from employee to dropped crate
-        gd.edgeWeight[gd.g.find(e.myName, dropCrate)] = 0;
+        theOptimizer.theGraph.edgeWeight[theOptimizer.theGraph.g.find(e.myName, dropCrate)] = 0;
 
         return false;
     }
     return true;
 }
 
-void run()
+void sOptimizer::run()
 {
-    theOptimizer.theGraph = makeGraph();
+    theGraph = makeGraph();
 
     bool crateLimitOK = false;
     while (!crateLimitOK)
     {
-        theOptimizer.theFlows = maxFlow(theOptimizer.theGraph);
+        theFlows = maxFlow(theGraph);
 
-        crateLimitOK = enforceCrateLimit(
-            theOptimizer.theGraph, theOptimizer.theFlows);
+        crateLimitOK = enforceCrateLimit();
     }
 }
 

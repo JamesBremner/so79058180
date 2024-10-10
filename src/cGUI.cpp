@@ -6,7 +6,7 @@ cGUI::cGUI()
     : fm(wex::maker::make())
 {
     generate1();
-    run();
+    theOptimizer.run();
 
     menus();
 
@@ -94,7 +94,7 @@ void cGUI::menus()
                       i++;
                   }
 
-                  run();
+                  theOptimizer.run();
 
                   fm.update();
               });

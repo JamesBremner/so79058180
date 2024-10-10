@@ -38,6 +38,8 @@ struct sOptimizer
     raven::graph::sGraphData theGraph;
     std::vector<int> theFlows;
     bool fDropMostPushers;
+
+    void run();
 };
 
 extern std::vector<sEmployee> theEmployees;
