@@ -16,7 +16,7 @@ static_link_flags = -static-libstdc++ -static-libgcc -static -lComctl32
 # folders
 ODIR = ./.vscode/obj
 
-OPT = -g
+OPT = -O2
 CCflags = -std=c++17 $(OPT) -D_mingw_
 
 # sources
@@ -25,6 +25,9 @@ OBJ_starter = \
 	$(ODIR)/cGUI.o \
 	$(ODIR)/cGraph.o \
 	$(ODIR)/GraphTheory.o \
+
+OBJ_search = \
+	$(ODIR)/search.o
 
 ### COMPILE
 
@@ -35,6 +38,11 @@ $(ODIR)/%.o: %.cpp
 starter: $(OBJ_starter)
 	g++ $(OPT) \
 	-o bin/cratePusher.exe $^  \
+	$(static_link_flags) $(LIBS)
+
+search: $(OBJ_search)
+	g++ $(OPT) \
+	-o bin/searcher.exe $^  \
 	$(static_link_flags) $(LIBS)
 
 .PHONY: clean

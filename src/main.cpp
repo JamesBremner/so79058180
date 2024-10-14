@@ -1,6 +1,7 @@
 
 #include <iostream>
 #include <algorithm>
+#include <queue>
 #include "cratePusher.h"
 #include "cGUI.h"
 
@@ -213,19 +214,19 @@ std::string display()
     for (auto &e : theEmployees)
     {
         int totalPay = 0;
-        for (auto& crate : theCrates)
+        for (auto &crate : theCrates)
         {
-            int f = theOptimizer.flow( e.myName, crate.myName );
-            if( f > 0 )
+            int f = theOptimizer.flow(e.myName, crate.myName);
+            if (f > 0)
                 totalPay += f;
         }
         ss << e.myName << " is paid " << totalPay << "\n";
 
         ss << "( ";
-        for ( auto& crate : theCrates )
+        for (auto &crate : theCrates)
         {
-            int f = theOptimizer.flow( e.myName, crate.myName );
-            if( f > 0 )
+            int f = theOptimizer.flow(e.myName, crate.myName);
+            if (f > 0)
                 ss << " " << f << " for crate " << crate.myName << " ";
         }
         ss << " )\n";
@@ -383,8 +384,230 @@ void sOptimizer::run()
     return;
 }
 
+std::vector<int>
+bfsPath2(raven::graph::sGraphData &gd,
+const std::vector<int>& resWeight2)
+{
+    // the path will be stored here
+    std::vector<int> path;
+
+    // queue of visited vertices with unsearched children
+    std::queue<int> Q;
+
+    // track nodes that have been visited
+    // prevent getting caught going around and around a cycle
+    std::vector<bool> visited(gd.g.vertexCount(), false);
+
+    // store the vertex which every visited vertex was reached from
+    std::vector<int> pred(gd.g.vertexCount(), -1);
+
+    if (!gd.edgeWeight.size())
+        gd.edgeWeight.resize(gd.g.edgeCount(), 1);
+
+    // get vertex indices from user names
+    int start = gd.g.find(gd.startName);
+    int dest = gd.g.find(gd.endName);
+    if (start < 0 || dest < 0)
+        throw std::runtime_error(
+            "cGraph::bfsPath bad start or destination");
+
+    // start at start
+    int v = start;
+    Q.push(v);
+    visited[v] = true;
+
+    // loop while the queue is not empty
+    while (!Q.empty())
+    {
+        // get current vertex from front of queue
+        v = Q.front();
+        Q.pop();
+
+        // loop over vertices reachable from current vertex
+        for (int u : gd.g.adjacentOut(v))
+        {
+            int ei = gd.g.find(v, u);
+            if (gd.edgeWeight[ei] == 0 || 
+                resWeight2[ei] == 0 )
+                continue;
+
+            if (u == dest)
+            {
+                // reached the destination, no need to search further
+                pred[u] = v;
+                std::queue<int> empty;
+                std::swap(Q, empty);
+                break;
+            }
+            if (!visited[u])
+            {
+                // visit to a new node
+                // because this is BFS, the first visit will be from
+                // the previous node on the shortest path
+
+                // add to queue, record predessor vertex, and mark visited
+                Q.push(u);
+                pred[u] = v;
+                visited[u] = true;
+            }
+        }
+    }
+
+    if (pred[dest] == -1)
+    {
+        // destination not reachable
+        return path;
+    }
+
+    // extract path by backtracking from destination to start
+    v = dest;
+    while (true)
+    {
+        path.push_back(v);
+        if (v == start)
+            break;
+        v = pred[v];
+    }
+
+    // flip path to start -> destination
+    std::reverse(path.begin(), path.end());
+
+    return path;
+}
+
+double
+flows2(
+    raven::graph::sGraphData &gd,
+    std::vector<int> &vEdgeFlow,
+    std::vector<int> &vEdgeWeight2)
+{
+    if (!gd.g.isDirected())
+        throw std::runtime_error(
+            "Flow calculation needs directed graph ( 2nd input line must be 'g')");
+
+    int totalFlow = 0;
+
+    // construct residual network
+    // for each link, add a reverse edge with zero weight
+    auto residual = gd;
+    for (auto ep : gd.g.edgeList())
+    {
+        int ei = residual.g.add(ep.second, ep.first);
+        residual.edgeWeight.push_back(0);
+    }
+    std::vector<int> resWeight2(gd.g.edgeCount(), 0);
+
+    while (1)
+    {
+        /* find shortest path with available capacity
+
+        This is the Edmonds–Karp implementation of the Ford–Fulkerson method
+        It uses breadth first searching so the paths are found in a defined order
+        rather than a 'random' order depending on how the links are stored in the graph data structure
+
+        https://en.wikipedia.org/wiki/Edmonds%E2%80%93Karp_algorithm
+
+        https://theory.stanford.edu/~tim/w16/l/l1.pdf
+
+        */
+
+        auto p = bfsPath2(residual,resWeight2);
+
+        if (!p.size())
+            break;
+
+        // maximum flow through path
+        int maxflow = INT_MAX;
+        int u = -1;
+        int v;
+        for (int v : p)
+        {
+            if (u >= 0)
+            {
+                double cap = residual.edgeWeight[residual.g.find(u, v)];
+                if (cap < maxflow)
+                {
+                    maxflow = cap;
+                }
+            }
+            u = v;
+        }
+
+        // consume capacity of links in path
+        u = -1;
+        for (int v : p)
+        {
+            if (u >= 0)
+            {
+                // subtract flow from path link
+                int ei = residual.g.find(u, v);
+                residual.edgeWeight[ei] -= maxflow;
+
+                // add flow to reverse edge
+                ei = residual.g.find(v, u);
+                residual.edgeWeight[ei] += maxflow;
+            }
+            u = v;
+        }
+
+        totalFlow += maxflow;
+    }
+
+    // calculate flow through each real edge
+    vEdgeFlow.clear();
+
+    // loop over real edges
+    for (int ei = 0; ei < gd.g.edgeCount(); ei++)
+    {
+        // flow is capacity minus unused capacity
+        vEdgeFlow.push_back(
+            gd.edgeWeight[ei] - residual.edgeWeight[ei]);
+    }
+
+    return totalFlow;
+}
+
+void test()
+{
+    raven::graph::sGraphData gd;
+    gd.g.directed();
+    std::vector<int> vEdgeWeight2;
+
+    gd.g.add("A", "B");
+    gd.edgeWeight.push_back(1);
+    vEdgeWeight2.push_back(INT_MAX);
+
+    gd.g.add("C", "D");
+    gd.edgeWeight.push_back(10);
+    vEdgeWeight2.push_back(0);
+
+    gd.g.add("src", "A");
+    gd.edgeWeight.push_back(1000);
+    vEdgeWeight2.push_back(INT_MAX);
+    gd.g.add("src", "C");
+    gd.edgeWeight.push_back(1000);
+    vEdgeWeight2.push_back(INT_MAX);
+    gd.g.add("B", "snk");
+    gd.edgeWeight.push_back(1000);
+    vEdgeWeight2.push_back(INT_MAX);
+    gd.g.add("D", "snk");
+    gd.edgeWeight.push_back(1000);
+    vEdgeWeight2.push_back(INT_MAX);
+
+    gd.startName = "src";
+    gd.endName = "snk";
+
+    std::vector<int> vEdgeFlow;
+    flows2(gd, vEdgeFlow, vEdgeWeight2);
+
+    int fAB = vEdgeFlow[gd.g.find("A", "B")];
+    int fCD = vEdgeFlow[gd.g.find("C", "D")];
+}
+
 main()
 {
+    test();
+
     cGUI GUI;
 
     return 0;
