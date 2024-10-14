@@ -10,12 +10,12 @@ class cSex
 {
 
 public:
-    /// @brief set next variable test values
-    /// @param count nunber of variables
+    /// @brief search through variable test ranges
+    /// @param count number of variables
     /// @param max maximum of variable range
     /// @return true if more to come, false if all done
 
-    bool inc(int count, int max);
+    bool search(int count, int max);
 
     virtual void copy(int *p) = 0;
     virtual bool isFeasible() = 0;
@@ -43,24 +43,9 @@ protected:
     int myOptValue;
 
 private:
-    void setVarCount(int count)
-    {
-        myOptValue = 0;
-        if (myVarTestVals.size())
-            return;
-        myVarTestVals.clear();
-        myVarTestVals.resize(count);
-    }
-
-    void setRez(int max)
-    {
-        if (myRez)
-            return;
-        myRez = max / 4;
-    }
+    bool nextTestValues(std::vector<int>& test, int max);
+    void checkFunctionValue();
 };
-
-typedef std::vector<std::vector<int>> vPec_t;
 
 struct sEmployee
 {
@@ -91,100 +76,156 @@ struct sEmployee
     }
 };
 
-std::vector<sEmployee> theEmployees;
-std::vector<int> theBudgets;
-
-vPec_t vPec;
-
+typedef std::vector<std::vector<int>> vPec_t;
 class cCratePusher : public cSex
 {
 public:
+    void add(const sEmployee &e)
+    {
+        myEmployees.push_back(e);
+    }
+    void setCrateBudget(std::vector<int> vb)
+    {
+        myBudgets = vb;
+    }
+
+    void search();
     bool isFeasible();
     void copy(int *p);
     int optFunVal();
     void constructVariables();
+
+    // Payment to employee for crate
+    int Pec(int e, int c)
+    {
+        return vPec[e][c];
+    }
+    // Employee efficiency
+    int f(int e)
+    {
+        return myEmployees[e].myEfficiency;
+    }
+
+    void display();
+
+private:
+    std::vector<sEmployee> myEmployees;
+    std::vector<int> myBudgets;
+
+    vPec_t vPec;
+
+    bool isWithinBudgetLimit(int c);
+    bool isWithinPayLimit(int e);
 };
 
-cCratePusher cratePusher;
-
-bool cSex::inc(int count, int max)
+bool cSex::nextTestValues(
+    std::vector<int>& test,
+    int max)
 {
-    setVarCount(count);
-    setRez(max);
-
+    int k = 0;
     while (true)
     {
-        do
+        int *p = &test[k];
+        *p += myRez;
+        if (*p <= max)
+            break;
+        *p = 0;
+        k++;
+        if (k == myVarTestVals.size())
         {
-            int k = 0;
-            while (true)
-            {
-                int *p = &myVarTestVals[k];
-                *p += myRez;
-                if (*p <= max)
-                {
-                    copyTestVals();
-                    break;
-                }
-                *p = 0;
-                k++;
-                if (k == myVarTestVals.size())
-                {
-                    copyOptVals();
-                    return false;
-                }
-            }
-        } while (!isFeasible());
-
-        // check for improved function value
-        int o = optFunVal();
-        if (o > myOptValue)
-        {
-            myOptValue = o;
-            myVarBestVals = myVarTestVals;
+            // search is complete
+            return false;
         }
     }
 
     return true;
 }
 
-int Pec(int e, int c)
+void cSex::checkFunctionValue()
 {
-    return vPec[e][c];
-}
-int f(int e)
-{
-    return theEmployees[e].myEfficiency;
+    if (!isFeasible())
+        return;
+    // check for improved function value
+    int o = optFunVal();
+    if (o > myOptValue)
+    {
+        myOptValue = o;
+        myVarBestVals = myVarTestVals;
+    }
 }
 
-bool isWithinBudgetLimit(int c)
+bool cSex::search(int count, int max)
+{
+    // search space at low rez
+    myOptValue = 0;
+    myVarTestVals.clear();
+    myVarTestVals.resize(count, 0);
+    myRez = max / 5;
+
+    while (true)
+    {
+        // next test value set
+        if (!nextTestValues(myVarTestVals, max))
+        {
+            // search is complete
+            copyOptVals();
+            break;
+        }
+        copyTestVals();
+        checkFunctionValue();
+    }
+
+    // search local space around low rez opt at high rez
+
+    std::vector<int> test(count,0);
+    myRez = 1;
+    auto start = myVarBestVals;
+    while (true)
+    {
+        if (!nextTestValues(test,4))
+        {
+            copyOptVals();
+            return true;
+        }
+        for (int i = 0; i < count; i++)
+        {
+            myVarTestVals[i] = start[i] + test[i] - 2;
+        }
+        copyTestVals();
+        checkFunctionValue();
+    }
+
+    return true;
+}
+
+bool cCratePusher::isWithinBudgetLimit(int c)
 {
     int b = 0;
-    for (int e = 0; e < theEmployees.size(); e++)
+    for (int e = 0; e < myEmployees.size(); e++)
     {
         b += Pec(e, c);
     }
-    return b <= theBudgets[c];
+    return b <= myBudgets[c];
 }
 
-bool isWithinPayLimit(int e)
+bool cCratePusher::isWithinPayLimit(int e)
 {
     int p = 0;
-    for (int c = 0; c < theBudgets.size(); c++)
+    for (int c = 0; c < myBudgets.size(); c++)
         p += Pec(e, c);
-    return p < theEmployees[e].myPayLimit;
+    return p < myEmployees[e].myPayLimit;
 }
 
 bool cCratePusher::isFeasible()
 {
-    for (int e = 0; e < theEmployees.size(); e++)
+    for (int e = 0; e < myEmployees.size(); e++)
     {
         if (!isWithinPayLimit(e))
             return false;
-        for (int c = 0; c < theBudgets.size(); c++)
+        for (int c = 0; c < myBudgets.size(); c++)
         {
             if (Pec(e, c) > 0)
-                if (!theEmployees[e].isCapable(c))
+                if (!myEmployees[e].isCapable(c))
                     return false;
             if (!isWithinBudgetLimit(c))
                 return false;
@@ -196,8 +237,8 @@ bool cCratePusher::isFeasible()
 int cCratePusher::optFunVal()
 {
     int o = 0;
-    for (int e = 0; e < theEmployees.size(); e++)
-        for (int c = 0; c < theBudgets.size(); c++)
+    for (int e = 0; e < myEmployees.size(); e++)
+        for (int c = 0; c < myBudgets.size(); c++)
         {
             o += Pec(e, c) * f(e);
         }
@@ -207,20 +248,19 @@ int cCratePusher::optFunVal()
 void cCratePusher::constructVariables()
 {
     vPec_t twoDimVector(
-        theEmployees.size(),
-        std::vector<int>(theBudgets.size(), 0));
+        myEmployees.size(),
+        std::vector<int>(myBudgets.size(), 0));
     vPec = twoDimVector;
-    auto vPecOpt = twoDimVector;
 }
 
-void display()
+void cCratePusher::display()
 {
     std::stringstream ss;
-    for (int e = 0; e < theEmployees.size(); e++)
+    for (int e = 0; e < myEmployees.size(); e++)
     {
         ss << "Employee " << e;
         ss << " ( ";
-        for (int c = 0; c < theBudgets.size(); c++)
+        for (int c = 0; c < myBudgets.size(); c++)
         {
             int f = Pec(e, c);
             if (f > 0)
@@ -228,7 +268,7 @@ void display()
         }
         ss << " )\n";
     }
-    ss << "total Distance " << cratePusher.optFunVal()
+    ss << "total Distance " << optFunVal()
        << "\n";
 
     std::cout << ss.str();
@@ -236,24 +276,35 @@ void display()
 
 void cCratePusher::copy(int *psol)
 {
-    for (int e = 0; e < theEmployees.size(); e++)
-        for (int c = 0; c < theBudgets.size(); c++)
+    for (int e = 0; e < myEmployees.size(); e++)
+        for (int c = 0; c < myBudgets.size(); c++)
             vPec[e][c] = *psol++;
+}
+
+void cCratePusher::search()
+{
+    constructVariables();
+    cSex::search(
+        myEmployees.size() * myBudgets.size(),
+        20);
 }
 
 main()
 {
+    cCratePusher cratePusher;
 
+    // specify employees
     sEmployee alice(35, 2, 3, {0, 1, 2});
     sEmployee bob(INT_MAX, INT_MAX, 2, {0, 3});
-    theEmployees.push_back(alice);
-    theEmployees.push_back(bob);
-    theBudgets = std::vector<int>(4, 20);
-    cratePusher.constructVariables();
+    cratePusher.add(alice);
+    cratePusher.add(bob);
 
-    cratePusher.inc(
-        theEmployees.size() * theBudgets.size(),
-        20);
+    // specify crate budgets
+    cratePusher.setCrateBudget({20, 20, 20, 20});
 
-    display();
+    // search solution space for optimum
+    cratePusher.search();
+
+    // display optimum on console
+    cratePusher.display();
 }
