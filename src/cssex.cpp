@@ -1,5 +1,6 @@
 #include <vector>
 #include <stdexcept>
+#include "cRunWatch.h"
 
 #include "cssex.h"
 
@@ -28,12 +29,18 @@ bool cSSex::nextTestValues(
 
 void cSSex::checkFunctionValue()
 {
+     copy(&myVarTestVals[0]);
+
+    // check that all variable constraints are true
     if (!isFeasible())
         return;
+
     // check for improved function value
     int o = optFunVal();
     if (o > myOptValue)
     {
+        // save the improved value
+        // and the variable values that gave it
         myOptValue = o;
         myVarBestVals = myVarTestVals;
     }
@@ -41,6 +48,8 @@ void cSSex::checkFunctionValue()
 
 void cSSex::search(int count, int max)
 {
+    raven::set::cRunWatch("cSSex::search");
+    
     // search space at low rez
     myOptValue = 0;
     myVarTestVals.clear();
@@ -56,7 +65,6 @@ void cSSex::search(int count, int max)
             copyOptVals();
             break;
         }
-        copyTestVals();
         checkFunctionValue();
     }
     if (!myVarBestVals.size())
@@ -76,7 +84,6 @@ void cSSex::search(int count, int max)
         for (int i = 0; i < count; i++)
             myVarTestVals[i] = start[i] + test[i] - tvd;
 
-        copyTestVals();
         checkFunctionValue();
     }
 

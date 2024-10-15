@@ -3,9 +3,14 @@
 class cSSex
 {
 public:
-    /// @brief search through variable test ranges
-    /// @param count number of variables
-    /// @param max maximum of variable range
+    /** @brief exhaustive search through variable test ranges
+     @param count number of variables
+     @param max maximum of variable range
+
+    The solution space is searched in two passes.
+    First checking every 1 in 5 solution points
+    Second checking every point around optimum found in first pass
+     */
 
     void search(int count, int max);
 
@@ -16,19 +21,14 @@ public:
 
     /// @brief check feasability of test values
     /// @return true if feasible
+    ///
+    /// over-ride to implement constraints on variable values
 
     virtual bool isFeasible() = 0;
 
     /// calculate value of funtion to be optimized with these variable test values
 
     virtual int optFunVal() = 0;
-
-    /// @brief copy 1D test values to user's multidimensional solution space
-
-    void copyTestVals()
-    {
-        copy(&myVarTestVals[0]);
-    }
 
     /// @brief copy 1D optimum values to user's multidimensional solution space
     void copyOptVals()

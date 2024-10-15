@@ -1,11 +1,12 @@
 #source file search paths
-VPATH = ./src ../PathFinder/src
+VPATH = ./src ../PathFinder/src ../raven-set
 
 	# compiler include search paths
 INCS = -I./include \
 	-I../windex/include \
 	-I../raven-set \
 	-I../PathFinder/src \
+	-I../../code_ext/boost/boost1_78 
 
 LIBS = \
 	-lgdiplus -lgdi32 -lcomdlg32 -lstdc++fs \
@@ -29,6 +30,7 @@ OBJ_starter = \
 OBJ_search = \
 	$(ODIR)/search.o \
 	$(ODIR)/cssex.o \
+	$(ODIR)/cRunWatch.o \
 
 ### COMPILE
 

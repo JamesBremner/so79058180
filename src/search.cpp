@@ -3,6 +3,7 @@
 #include <iostream>
 #include <sstream>
 #include <algorithm>
+#include "cRunWatch.h"
 #include "cssex.h"
 
 
@@ -173,6 +174,8 @@ void cCratePusher::search()
 
 main()
 {
+    raven::set::cRunWatch::Start();
+
     cCratePusher cratePusher;
 
     // specify employees
@@ -189,4 +192,6 @@ main()
 
     // display optimum on console
     cratePusher.display();
+
+    raven::set::cRunWatch::Report();
 }
