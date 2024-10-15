@@ -167,9 +167,10 @@ void cCratePusher::copy(int *psol)
 void cCratePusher::search()
 {
     constructVariables();
-    cSSex::search(
+    SolutionSpace(
         myEmployees.size() * myBudgets.size(),
         20);
+    cSSex::search();
 }
 
 main()
