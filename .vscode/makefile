@@ -27,7 +27,8 @@ OBJ_starter = \
 	$(ODIR)/GraphTheory.o \
 
 OBJ_search = \
-	$(ODIR)/search.o
+	$(ODIR)/search.o \
+	$(ODIR)/cssex.o \
 
 ### COMPILE
 

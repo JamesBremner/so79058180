@@ -3,49 +3,8 @@
 #include <iostream>
 #include <sstream>
 #include <algorithm>
+#include "cssex.h"
 
-/// @brief Integer solution space explorer
-
-class cSex
-{
-
-public:
-    /// @brief search through variable test ranges
-    /// @param count number of variables
-    /// @param max maximum of variable range
-    /// @return true if more to come, false if all done
-
-    bool search(int count, int max);
-
-    virtual void copy(int *p) = 0;
-    virtual bool isFeasible() = 0;
-
-    // caclulate value of funtion to be optimized with these variable testvalues
-    virtual int optFunVal() = 0;
-
-    int getOptimumValue() const
-    {
-        return myOptValue;
-    }
-    void copyTestVals()
-    {
-        copy(&myVarTestVals[0]);
-    }
-    void copyOptVals()
-    {
-        copy(&myVarBestVals[0]);
-    }
-
-protected:
-    std::vector<int> myVarTestVals;
-    std::vector<int> myVarBestVals;
-    int myRez;
-    int myOptValue;
-
-private:
-    bool nextTestValues(std::vector<int>& test, int max);
-    void checkFunctionValue();
-};
 
 struct sEmployee
 {
@@ -77,7 +36,7 @@ struct sEmployee
 };
 
 typedef std::vector<std::vector<int>> vPec_t;
-class cCratePusher : public cSex
+class cCratePusher : public cSSex
 {
 public:
     void add(const sEmployee &e)
@@ -118,85 +77,6 @@ private:
     bool isWithinPayLimit(int e);
 };
 
-bool cSex::nextTestValues(
-    std::vector<int>& test,
-    int max)
-{
-    int k = 0;
-    while (true)
-    {
-        int *p = &test[k];
-        *p += myRez;
-        if (*p <= max)
-            break;
-        *p = 0;
-        k++;
-        if (k == myVarTestVals.size())
-        {
-            // search is complete
-            return false;
-        }
-    }
-
-    return true;
-}
-
-void cSex::checkFunctionValue()
-{
-    if (!isFeasible())
-        return;
-    // check for improved function value
-    int o = optFunVal();
-    if (o > myOptValue)
-    {
-        myOptValue = o;
-        myVarBestVals = myVarTestVals;
-    }
-}
-
-bool cSex::search(int count, int max)
-{
-    // search space at low rez
-    myOptValue = 0;
-    myVarTestVals.clear();
-    myVarTestVals.resize(count, 0);
-    myRez = max / 5;
-
-    while (true)
-    {
-        // next test value set
-        if (!nextTestValues(myVarTestVals, max))
-        {
-            // search is complete
-            copyOptVals();
-            break;
-        }
-        copyTestVals();
-        checkFunctionValue();
-    }
-
-    // search local space around low rez opt at high rez
-
-    std::vector<int> test(count,0);
-    myRez = 1;
-    auto start = myVarBestVals;
-    while (true)
-    {
-        if (!nextTestValues(test,4))
-        {
-            copyOptVals();
-            return true;
-        }
-        for (int i = 0; i < count; i++)
-        {
-            myVarTestVals[i] = start[i] + test[i] - 2;
-        }
-        copyTestVals();
-        checkFunctionValue();
-    }
-
-    return true;
-}
 
 bool cCratePusher::isWithinBudgetLimit(int c)
 {
@@ -213,7 +93,7 @@ bool cCratePusher::isWithinPayLimit(int e)
     int p = 0;
     for (int c = 0; c < myBudgets.size(); c++)
         p += Pec(e, c);
-    return p < myEmployees[e].myPayLimit;
+    return p <= myEmployees[e].myPayLimit;
 }
 
 bool cCratePusher::isFeasible()
@@ -224,7 +104,9 @@ bool cCratePusher::isFeasible()
             return false;
         for (int c = 0; c < myBudgets.size(); c++)
         {
-            if (Pec(e, c) > 0)
+            if (Pec(e, c) < 0)
+                return false;
+            if (Pec(e, c) != 0)
                 if (!myEmployees[e].isCapable(c))
                     return false;
             if (!isWithinBudgetLimit(c))
@@ -284,7 +166,7 @@ void cCratePusher::copy(int *psol)
 void cCratePusher::search()
 {
     constructVariables();
-    cSex::search(
+    cSSex::search(
         myEmployees.size() * myBudgets.size(),
         20);
 }
