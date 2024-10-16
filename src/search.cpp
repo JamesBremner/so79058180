@@ -49,7 +49,10 @@ public:
         myBudgets = vb;
     }
 
-    void search();
+    void search();          // axhaustive search
+
+    void anneal();          // sim anealing
+
     bool isFeasible();
     void copy(int *p);
     int optFunVal();
@@ -172,6 +175,14 @@ void cCratePusher::search()
         20);
     cSSex::search();
 }
+void cCratePusher::anneal()
+{
+    constructVariables();
+    SolutionSpace(
+        myEmployees.size() * myBudgets.size(),
+        20);
+    cSSex::anneal( 10000 );
+}
 
 main()
 {
@@ -189,7 +200,9 @@ main()
     cratePusher.setCrateBudget({20, 20, 20, 20});
 
     // search solution space for optimum
-    cratePusher.search();
+    //cratePusher.search();
+
+    cratePusher.anneal();
 
     // display optimum on console
     cratePusher.display();
