@@ -40,6 +40,12 @@ typedef std::vector<std::vector<int>> vPec_t;
 class cCratePusher : public cSSex
 {
 public:
+cCratePusher()
+{
+     regObjectiveFunction( [this]()->int{ return objective();} );
+     regFeasibleFunction( [this]()->bool{ return isFeasible();} );
+     regCopyTestFunction( [this](int*p){ copyTest(p);} );
+}
     void add(const sEmployee &e)
     {
         myEmployees.push_back(e);
@@ -49,22 +55,18 @@ public:
         myBudgets = vb;
     }
 
-    void search();          // axhaustive search
-
-    void anneal();          // sim anealing
-
     bool isFeasible();
-    void copy(int *p);
-    int optFunVal();
+    void copyTest(int *p);
+    int objective() const;            // funtion to be optimized
     void constructVariables();
 
     // Payment to employee for crate
-    int Pec(int e, int c)
+    int Pec(int e, int c) const
     {
         return vPec[e][c];
     }
     // Employee efficiency
-    int f(int e)
+    int f(int e) const
     {
         return myEmployees[e].myEfficiency;
     }
@@ -120,7 +122,7 @@ bool cCratePusher::isFeasible()
     return true;
 }
 
-int cCratePusher::optFunVal()
+int cCratePusher::objective() const
 {
     int o = 0;
     for (int e = 0; e < myEmployees.size(); e++)
@@ -137,6 +139,9 @@ void cCratePusher::constructVariables()
         myEmployees.size(),
         std::vector<int>(myBudgets.size(), 0));
     vPec = twoDimVector;
+    SolutionSpace(
+        myEmployees.size() * myBudgets.size(),
+        20);
 }
 
 void cCratePusher::display()
@@ -154,34 +159,17 @@ void cCratePusher::display()
         }
         ss << " )\n";
     }
-    ss << "total Distance " << optFunVal()
+    ss << "total Distance " << objective()
        << "\n";
 
     std::cout << ss.str();
 }
 
-void cCratePusher::copy(int *psol)
+void cCratePusher::copyTest(int *psol)
 {
     for (int e = 0; e < myEmployees.size(); e++)
         for (int c = 0; c < myBudgets.size(); c++)
             vPec[e][c] = *psol++;
-}
-
-void cCratePusher::search()
-{
-    constructVariables();
-    SolutionSpace(
-        myEmployees.size() * myBudgets.size(),
-        20);
-    cSSex::search();
-}
-void cCratePusher::anneal()
-{
-    constructVariables();
-    SolutionSpace(
-        myEmployees.size() * myBudgets.size(),
-        20);
-    cSSex::anneal( 10000 );
 }
 
 main()
@@ -199,10 +187,14 @@ main()
     // specify crate budgets
     cratePusher.setCrateBudget({20, 20, 20, 20});
 
-    // search solution space for optimum
-    //cratePusher.search();
+    cratePusher.constructVariables();
 
-    cratePusher.anneal();
+    // search solution space for optimum
+    cratePusher.search();
+
+    //cratePusher.anneal();
+
+    //cratePusher.greedy();
 
     // display optimum on console
     cratePusher.display();
